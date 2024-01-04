@@ -381,7 +381,7 @@ function create_vm_snapshot() {
 }
 function prompt_password() {    
     
-    if PROMPT_PASS=$(whiptail --passwordbox "Enter a Password for your container '$PVE_TARGET'" --title "Choose a strong password" 10 50 --cancel-button Exit 3>&1 1>&2 2>&3); then
+    if PROMPT_PASS=$(whiptail --passwordbox "Enter a Password for your container '$PVE_TARGET'. (leave empty for a random one)" --title "Choose a strong password" 10 50 --cancel-button Exit 3>&1 1>&2 2>&3); then
         if [ -z $PROMPT_PASS ]; then
             CT_PASSWORD=$TEMP_PASS
             INT_PROMPT_PASS=0
