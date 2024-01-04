@@ -114,11 +114,11 @@ UNBOLD=$(tput rmso)
 ENDMARKER=$(tput sgr0)
 
 function banner() {
-    BANNER=" ${CProxmox} ___             ${CWhite}               ${CDietPi} ___  _     _   ___ _ 
- ${CProxmox}| _ \_ _ _____ __${CWhite}_ __  _____ __ ${CDietPi}|   \(_)___| |_| _ (_)
- ${CProxmox}|  _/ '_/ _ \ \ /${CWhite} '  \/ _ \ \ / ${CDietPi}| |) | / -_)  _|  _/ |
- ${CProxmox}| | |_| \___/_\_\\${CWhite}_|_|_\___/_\_\ ${CDietPi}|___/|_\___|\__|_| |_| 
- ${CProxmox}|_|${CBlue}github.com/thushan/proxmox-vm-to-ct${ENDMARKER}          ${CYellow}v${VERSION}${ENDMARKER}
+    BANNER=" ${CWhite} ___             ${CWhite}               ${CDietPi} ___  _     _   ___ _ 
+ ${CWhite}| _ \_ _ ___${CProxmox}__ __${CWhite}_ __  ___${CProxmox}__ __ ${CDietPi}|   \(_)___| |_| _ (_)
+ ${CWhite}|  _/ '_/ _ ${CProxmox}\ \ /${CWhite} '  \/ _ ${CProxmox}\ \ / ${CDietPi}| |) | / -_)  _|  _/ |
+ ${CWhite}| | |_| \___${CProxmox}/_\_\\${CWhite}_|_|_\___${CProxmox}/_\_\ ${CDietPi}|___/|_\___|\__|_| |_| 
+ ${CWhite}|_|${CBlue}github.com/thushan/proxmox-vm-to-ct${ENDMARKER}          ${CYellow}v${VERSION}${ENDMARKER}
 
    Your ${CGrey}Virtual Machine${ENDMARKER} to ${CGrey}Container${ENDMARKER} Conversion Script
 
