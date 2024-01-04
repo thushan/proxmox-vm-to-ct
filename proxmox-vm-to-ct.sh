@@ -26,6 +26,9 @@ PVE_DESCRIPTION="Converted from VM to CT via <a href="http://www.github.com/thus
 OPT_CLEANUP=0
 OPT_DEFAULT_CONFIG=0
 OPT_SOURCE_OUTPUT=""
+OPT_IGNORE_PREP=0
+OPT_PROMPT_PASS=0
+INT_PROMPT_PASS=0
 
 CT_DEFAULT_CPU=2
 CT_DEFAULT_RAM=2048
@@ -52,6 +55,10 @@ function usage() {
     echo "      Cleanup the source compressed image after conversion (the *.tar.gz file)"
     echo "  --default-config"
     echo "      Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)"
+    echo "  --ignore-prep"
+    echo "      Ignore modifying the VM before snapshotting"
+    echo "  --prompt-password"
+    echo "      Prompt for a password for the container, temporary one generated & displayed otherwise"
     echo "  --help"
     echo "      Display this help message"
 }
@@ -74,7 +81,7 @@ while [ "$#" -gt 0 ]; do
         PVE_TARGET="$2"
         shift
         ;;
-    -o|--output|--source-output)
+    -o | --output | --source-output)
         OPT_SOURCE_OUTPUT="$2"
         shift
         ;;
@@ -83,6 +90,14 @@ while [ "$#" -gt 0 ]; do
         ;;
     --default-config)
         OPT_DEFAULT_CONFIG=1
+        ;;
+    --ignore-prep)
+        OPT_IGNORE_PREP=1
+        shift
+        ;;
+    --prompt-password)
+        OPT_PROMPT_PASS=1
+        shift
         ;;
     --)
         break
@@ -187,7 +202,10 @@ function check_proxmox_storage() {
         check_ok "Storage ${CBlue}$PVE_STORAGE${ENDMARKER} found"
     else
         IFS=,
-        check_error "Storage ${CBlue}$PVE_STORAGE${ENDMARKER} not found (detected: ${CBlue}$(IFS=,; echo "${PVE_STORAGE_LIST[*]}")${ENDMARKER})"
+        check_error "Storage ${CBlue}$PVE_STORAGE${ENDMARKER} not found (detected: ${CBlue}$(
+            IFS=,
+            echo "${PVE_STORAGE_LIST[*]}"
+        )${ENDMARKER})"
         fatal "Please specify a valid storage name"
     fi
 }
@@ -236,6 +254,9 @@ function check_args() {
     fi
 }
 
+function fatal-script() {
+    fatal "Exiting script..."
+}
 function create_container() {
     # Reference:
     # https://pve.proxmox.com/pve-docs/pct.1.html
@@ -251,7 +272,7 @@ function create_container() {
         --ostype $CT_OSTYPE \
         --features $CT_FEATURES \
         --storage $PVE_STORAGE \
-        --password $password \
+        --password $CT_PASSWORD \
         --unprivileged $CT_UNPRIVILEGED \
         --onboot $CT_ONBOOT
 }
@@ -267,17 +288,24 @@ function map_ct_to_defaults() {
         CT_FEATURES=$CT_DEFAULT_FEATURES
         CT_ONBOOT=$CT_DEFAULT_ONBOOT
         CT_ARCH=$CT_DEFAULT_ARCH
-        CT_OSTYPE=$CT_DEFAULT_OSTYPE    
-    fi    
+        CT_OSTYPE=$CT_DEFAULT_OSTYPE
+    fi
 }
 
 function print_opts() {
+    local CT_SECURE_PASSWORD="**********"
+    
+    if [[ "$OPT_PROMPT_PASS" -eq 0 ]] && [[ "$INT_PROMPT_PASS" -eq 0 ]]; then
+        CT_SECURE_PASSWORD=$CT_PASSWORD
+    fi
+
     msg "Gathering options..."
     msg3 "PVE Storage:     ${CBlue}$PVE_STORAGE${ENDMARKER}"
     msg3 "Source VM:       ${CBlue}$PVE_SOURCE${ENDMARKER}"
     msg3 "- Output:        ${CCyan}$PVE_SOURCE_OUTPUT${ENDMARKER}"
     msg3 "- Cleanup:       ${CCyan}$OPT_CLEANUP${ENDMARKER}"
     msg3 "Target CT:       ${CBlue}$PVE_TARGET${ENDMARKER}"
+    msg3 "- Password:      ${CRed}$CT_SECURE_PASSWORD${ENDMARKER}"
     msg3 "Default Config:  ${CBlue}$OPT_DEFAULT_CONFIG${ENDMARKER}"
     msg3 "- ID:            ${CCyan}$CT_NEXT_ID${ENDMARKER}"
     msg3 "- ARCH:          ${CCyan}$CT_ARCH${ENDMARKER}"
@@ -291,7 +319,7 @@ function print_opts() {
     msg3 "- ONBOOT:        ${CCyan}$CT_ONBOOT${ENDMARKER}"
     msg "Gathering options...Done!"
 }
-function validate_env() {    
+function validate_env() {
     msg "Validating environment..."
     check_sudo
     check_arch
@@ -302,15 +330,84 @@ function validate_env() {
     msg "Validating environment...done!"
 }
 
+vm_ct_prep() {
+    
+    if [[ "$OPT_IGNORE_PREP" -eq 1 ]]; then
+        check_warn "Ignoring DietPi specific VM Prep"
+        return
+    fi
 
+    msg "Preparing DietPi VM..."
+    
+    # Tell DietPi we're in a container
+    # src: https://github.com/MichaIng/DietPi/blob/master/dietpi/func/dietpi-obtain_hw_model#L27
+    echo 75 > /etc/.dietpi_hw_model_identifier
+    check_ok "HW Model Identifier set to ${CBlue}75${ENDMARKER}"
+
+    # Ensure DietPi installs updates & sets passwords for CT
+    # by going back to install_stage 1 (it'll be 2 now)
+    echo 1 > /boot/dietpi/.install_stage
+
+    # Disable CloudShell, interferes with CT
+    systemctl disable --now dietpi-cloudshell
+    rm /etc/systemd/system/dietpi-cloudshell.service
+    systemctl daemon-reload
+    check_ok "Disabled ${CBlue}dietpi-cloudshell${ENDMARKER}"
+
+    # Purge unnecessary packages, this may grow in the future, but simples for now.
+    echo "apt autopurge grub-pc tiny-initramfs linux-image-amd64" > /boot/Automation_Custom_Script.sh
+    check_ok "Added Automated Script to purge ${CBlue}autopurge grub-pc, tiny-initramfs, linux-image-amd64${ENDMARKER}"
+
+    msg "Preparing DietPi VM...Done!"
+}
+vm_fs_snapshot() {
+    tar -czvvf - -C / \
+        --exclude="sys" \
+        --exclude="dev" \
+        --exclude="run" \
+        --exclude="proc" \
+        --exclude="*.log" \
+        --exclude="*.log*" \
+        --exclude="*.gz" \
+        --exclude="*.sql" \
+        --exclude="swap.img" \
+        .
+}
+
+function create_vm_snapshot() {
+    ssh "root@$PVE_SOURCE" \ 
+        "$(typeset -f vm_ct_prep); $(typeset -f vm_fs_snapshot); vm_ct_prep; vm_fs_snapshot" \
+        >"/tmp/$PVE_SOURCE_OUTPUT.tar.gz"
+}
+function prompt_password() {    
+    
+    if PROMPT_PASS=$(whiptail --passwordbox "Enter a Password for your container '$PVE_TARGET'" --title "Choose a strong password" 10 50 --cancel-button Exit 3>&1 1>&2 2>&3); then
+        if [ -z $PROMPT_PASS ]; then
+            CT_PASSWORD=$TEMP_PASS
+            INT_PROMPT_PASS=0
+        else
+            CT_PASSWORD=$PROMPT_PASS
+            INT_PROMPT_PASS=1
+        fi
+    else
+        fatal-script
+    fi
+}
 main() {
     CT_NEXT_ID=$(pvesh get /cluster/nextid)
     TEMP_DIR=/tmp/proxmox-vm-to-ct/
-        
+    TEMP_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10; echo)
+
     if [[ "$OPT_SOURCE_OUTPUT" ]]; then
         PVE_SOURCE_OUTPUT=$OPT_SOURCE_OUTPUT
     else
         PVE_SOURCE_OUTPUT=$TEMP_DIR/$PVE_SOURCE.tar.gz
+    fi
+
+    if [[ "$OPT_PROMPT_PASS" -eq 1 ]]; then
+       prompt_password
+    else
+       CT_PASSWORD=$TEMP_PASS
     fi
 
     # Get the list of storage containers
@@ -320,6 +417,8 @@ main() {
 
     print_opts
     validate_env
+    #create_vm_snapshot
+    #create_container
 
 }
 
