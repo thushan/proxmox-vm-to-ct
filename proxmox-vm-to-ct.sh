@@ -273,24 +273,22 @@ function map_ct_to_defaults() {
 
 function print_opts() {
     msg "Gathering options..."
-    msg3 "PVE Storage: ${CBlue}$PVE_STORAGE${ENDMARKER}"
-    msg3 "Source VM:   ${CBlue}$PVE_SOURCE${ENDMARKER}"
-    msg3 "- Output:    ${CCyan}$PVE_SOURCE_OUTPUT${ENDMARKER}"
-    msg3 "- Cleanup:   ${CCyan}$OPT_CLEANUP${ENDMARKER}"
-    msg3 "Target CT:   ${CBlue}$PVE_TARGET${ENDMARKER}"
-    msg3 "CT Default:  ${CBlue}$OPT_DEFAULT_CONFIG${ENDMARKER}"
-    if [ "$OPT_DEFAULT_CONFIG" -eq 1 ]; then
-        msg3 "- ID:        ${CCyan}$CT_NEXT_ID${ENDMARKER}"
-        msg3 "- ARCH:      ${CCyan}$CT_DEFAULT_ARCH${ENDMARKER}"
-        msg3 "- CPU:       ${CCyan}$CT_DEFAULT_CPU${ENDMARKER}"
-        msg3 "- RAM:       ${CCyan}$CT_DEFAULT_RAM${ENDMARKER}"
-        msg3 "- HDD:       ${CCyan}$CT_DEFAULT_HDD${ENDMARKER}"
-        msg3 "- OSTYPE:    ${CCyan}$CT_DEFAULT_OSTYPE${ENDMARKER}"
-        msg3 "- NETWORK:   ${CCyan}$CT_DEFAULT_NETWORKING${ENDMARKER}"
-        msg3 "- FEATURES:  ${CCyan}$CT_DEFAULT_FEATURES${ENDMARKER}"
-        msg3 "- UNPRIV:    ${CCyan}$CT_DEFAULT_UNPRIVILEGED${ENDMARKER}"
-        msg3 "- ONBOOT:    ${CCyan}$CT_DEFAULT_ONBOOT${ENDMARKER}"
-    fi
+    msg3 "PVE Storage:     ${CBlue}$PVE_STORAGE${ENDMARKER}"
+    msg3 "Source VM:       ${CBlue}$PVE_SOURCE${ENDMARKER}"
+    msg3 "- Output:        ${CCyan}$PVE_SOURCE_OUTPUT${ENDMARKER}"
+    msg3 "- Cleanup:       ${CCyan}$OPT_CLEANUP${ENDMARKER}"
+    msg3 "Target CT:       ${CBlue}$PVE_TARGET${ENDMARKER}"
+    msg3 "Default Config:  ${CBlue}$OPT_DEFAULT_CONFIG${ENDMARKER}"
+    msg3 "- ID:            ${CCyan}$CT_NEXT_ID${ENDMARKER}"
+    msg3 "- ARCH:          ${CCyan}$CT_ARCH${ENDMARKER}"
+    msg3 "- CPU:           ${CCyan}$CT_CPU${ENDMARKER}"
+    msg3 "- RAM:           ${CCyan}$CT_RAM${ENDMARKER}"
+    msg3 "- HDD:           ${CCyan}$CT_HDD${ENDMARKER}"
+    msg3 "- OSTYPE:        ${CCyan}$CT_OSTYPE${ENDMARKER}"
+    msg3 "- NETWORK:       ${CCyan}$CT_NETWORKING${ENDMARKER}"
+    msg3 "- FEATURES:      ${CCyan}$CT_FEATURES${ENDMARKER}"
+    msg3 "- UNPRIV:        ${CCyan}$CT_UNPRIVILEGED${ENDMARKER}"
+    msg3 "- ONBOOT:        ${CCyan}$CT_ONBOOT${ENDMARKER}"
     msg "Gathering options...Done!"
 }
 function validate_env() {    
@@ -318,9 +316,10 @@ main() {
     # Get the list of storage containers
     mapfile -t PVE_STORAGE_LIST < <(pvesm status -content images | awk -v OFS="\\n" -F " +" 'NR>1 {print $1}')
 
+    map_ct_to_defaults
+
     print_opts
     validate_env
-    map_ct_to_defaults
 
 }
 
