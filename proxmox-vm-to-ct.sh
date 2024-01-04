@@ -87,10 +87,11 @@ function banner() {
     BANNER=" ${CProxmox} ___             ${CWhite}               ${CDietPi} ___  _     _   ___ _ 
  ${CProxmox}| _ \_ _ _____ __${CWhite}_ __  _____ __ ${CDietPi}|   \(_)___| |_| _ (_)
  ${CProxmox}|  _/ '_/ _ \ \ /${CWhite} '  \/ _ \ \ / ${CDietPi}| |) | / -_)  _|  _/ |
- ${CProxmox}|_| |_| \___/_\_\\${CWhite}_|_|_\___/_\_\ ${CDietPi}|___/|_\___|\__|_| |_|
+ ${CProxmox}| | |_| \___/_\_\\${CWhite}_|_|_\___/_\_\ ${CDietPi}|___/|_\___|\__|_| |_| 
+ ${CProxmox}|_|${CBlue}github.com/thushan/proxmox-vm-to-ct${ENDMARKER}          ${CYellow}v${VERSION}${ENDMARKER}
 
- ${CGrey}Virtual Machine${ENDMARKER} to ${CGrey}Container${ENDMARKER} Conversion Script  ${CYellow}v${VERSION}${ENDMARKER}
- ${CBlue}github.com/thushan/proxmox-vm-to-ct${ENDMARKER}
+   Your ${CGrey}Virtual Machine${ENDMARKER} to ${CGrey}Container${ENDMARKER} Conversion Script
+
 "
     printf "$BANNER"
 }
