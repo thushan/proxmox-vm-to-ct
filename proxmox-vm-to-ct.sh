@@ -19,8 +19,11 @@ readonly ARGS="$@"
 readonly ARGNUM="$#"
 
 PVE_SOURCE=""
+PVE_TARGET=""
+
 OPT_CLEANUP=0
 OPT_DEFAULT_CONFIG=0
+OPT_SOURCE_OUTPUT=""
 
 CT_DEFAULT_CPU=2
 CT_DEFAULT_RAM=2048
@@ -30,12 +33,20 @@ CT_DEFAULT_NETWORKING="name=eth0,ip=dhcp,ip6=auto,bridge=vmbr0,firewall=1"
 CT_DEFAULT_FEATURES="nesting=1"
 
 function usage() {
-    echo "Usage: $0 --source <hostname> [options]"
+    echo "Usage: $0 --source <hostname> --target <name> [options]"
     echo "Options:"
-    echo "  --help                Display this help message"
-    echo "  --source <hostname>   Source VM to convert to CT (Eg. postgres-pve.fritz.box or 192.168.0.10)"
-    echo "  --cleanup             Cleanup the temporary files after conversion"
-    echo "  --default-config      Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)"
+    echo "  --target <name>"
+    echo "      Name of the container to create (Eg. postgres-ct)"
+    echo "  --source <hostname>"
+    echo "      Source VM to convert to CT (Eg. postgres-vm.fritz.box or 192.168.0.10)"
+    echo "  --source-output <path>, --output <path>, -o <path>"
+    echo "      Location of the source VM output (default: /tmp/proxmox-vm-to-ct/<hostname>.tar.gz)"
+    echo "  --cleanup"
+    echo "      Cleanup the source compressed image after conversion (the *.tar.gz file)"
+    echo "  --default-config"
+    echo "      Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)"
+    echo "  --help"
+    echo "      Display this help message"
 }
 
 while [ "$#" -gt 0 ]; do
@@ -46,6 +57,14 @@ while [ "$#" -gt 0 ]; do
         ;;
     --source)
         PVE_SOURCE="$2"
+        shift
+        ;;
+    --target)
+        PVE_TARGET="$2"
+        shift
+        ;;
+    -o|--output|--source-output)
+        OPT_SOURCE_OUTPUT="$2"
         shift
         ;;
     --cleanup)
@@ -181,13 +200,21 @@ function check_args() {
         usage
         exit 1
     fi
+    if [[ ! "$PVE_TARGET" ]]; then
+        error "Target container name not specified"
+        usage
+        exit 1
+    fi
 }
 function print_opts() {
     msg "Gathering options..."
     msg3 "Source VM:   ${CBlue}$PVE_SOURCE${ENDMARKER}"
-    msg3 "Cleanup:     ${CBlue}$OPT_CLEANUP${ENDMARKER}"
-    msg3 "Default CT:  ${CBlue}$OPT_DEFAULT_CONFIG${ENDMARKER}"
+    msg3 "- Output:    ${CCyan}$PVE_SOURCE_OUTPUT${ENDMARKER}"
+    msg3 "- Cleanup:   ${CCyan}$OPT_CLEANUP${ENDMARKER}"
+    msg3 "Target CT:   ${CBlue}$PVE_TARGET${ENDMARKER}"
+    msg3 "CT Default:  ${CBlue}$OPT_DEFAULT_CONFIG${ENDMARKER}"
     if [ "$OPT_DEFAULT_CONFIG" -eq 1 ]; then
+        msg3 "- ID:        ${CCyan}$CT_NEXT_ID${ENDMARKER}"
         msg3 "- CPU:       ${CCyan}$CT_DEFAULT_CPU${ENDMARKER}"
         msg3 "- RAM:       ${CCyan}$CT_DEFAULT_RAM${ENDMARKER}"
         msg3 "- HDD:       ${CCyan}$CT_DEFAULT_HDD${ENDMARKER}"
@@ -199,9 +226,14 @@ function print_opts() {
 }
 
 main() {
-    PROXMOX_NEXTID=$(pvesh get /cluster/nextid)
+    CT_NEXT_ID=$(pvesh get /cluster/nextid)
     TEMP_DIR=/tmp/proxmox-vm-to-ct/
-    FS_OUTPUT=$TEMP_DIR/$PVE_SOURCE.tar.gz
+    
+    if [[ "$OPT_SOURCE_OUTPUT" ]]; then
+        PVE_SOURCE_OUTPUT=$OPT_SOURCE_OUTPUT
+    else
+        PVE_SOURCE_OUTPUT=$TEMP_DIR/$PVE_SOURCE.tar.gz
+    fi
 
     print_opts
     msg "Validating environment..."
