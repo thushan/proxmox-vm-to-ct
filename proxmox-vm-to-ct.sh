@@ -2,7 +2,7 @@
 
 # License: MIT
 # Author: Thushan Fernando <thushan.fernando@gmail.com>
-# http://www.github.com/thushan/proxmox-vm-to-ct
+# http://github.com/thushan/proxmox-vm-to-ct
 
 VERSION=0.6.0
 
@@ -18,6 +18,7 @@ fi
 PVE_SOURCE=""
 PVE_TARGET=""
 PVE_STORAGE=""
+PVE_SOURCE_OUTPUT=""
 PVE_DESCRIPTION="Converted from VM to CT via <a href="http://www.github.com/thushan/proxmox-vm-to-ct">proxmox-vm-to-ct</a>."
 
 OPT_CLEANUP=0
@@ -413,10 +414,10 @@ function vm_ct_prep() {
     if [ -e $DPI_CLOUDSHELL_SERVICE_PATH ]; then
         if systemctl is-enabled --quiet "$DPI_CLOUDSHELL_SERVICE_NAME"; then
             systemctl stop "$DPI_CLOUDSHELL_SERVICE_NAME"
-            systemctl disable --now "$DPI_CLOUDSHELL_SERVICE_NAME"
-            rm -f "$DPI_CLOUDSHELL_SERVICE_PATH"
-            systemctl daemon-reload
         fi
+        systemctl disable --now "$DPI_CLOUDSHELL_SERVICE_NAME"
+        rm -f "$DPI_CLOUDSHELL_SERVICE_PATH"
+        systemctl daemon-reload
     fi
 
     # Purge unnecessary packages, this may grow in the future, but simples for now.
