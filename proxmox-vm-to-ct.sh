@@ -4,7 +4,7 @@
 # Author: Thushan Fernando <thushan.fernando@gmail.com>
 # http://github.com/thushan/proxmox-vm-to-ct
 
-VERSION=0.6.0
+VERSION=0.7.0
 
 set -Eeuo pipefail
 set -o nounset
@@ -25,6 +25,7 @@ OPT_CLEANUP=0
 OPT_DEFAULT_CONFIG=0
 OPT_SOURCE_OUTPUT=""
 OPT_IGNORE_PREP=0
+OPT_IGNORE_DIETPI=0
 OPT_PROMPT_PASS=0
 INT_PROMPT_PASS=0
 
@@ -70,6 +71,8 @@ function usage() {
     echo "      Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)"
     echo "  --ignore-prep"
     echo "      Ignore modifying the VM before snapshotting"
+    echo "  --ignore-dietpi"
+    echo "      Ignore DietPi specific modifications on the VM before snapshotting. (ignored with --ignore-prep)"
     echo "  --prompt-password"
     echo "      Prompt for a password for the container, temporary one generated & displayed otherwise"
     echo "  --help"
@@ -106,6 +109,10 @@ while [ "$#" -gt 0 ]; do
         ;;
     --ignore-prep)
         OPT_IGNORE_PREP=1
+        shift
+        ;;
+    --ignore-dietpi)
+        OPT_IGNORE_DIETPI=1
         shift
         ;;
     --prompt-password)
@@ -392,10 +399,17 @@ function created_container_print_opts() {
     msg3 "- Template:       ${CCyan}$PVE_SOURCE_OUTPUT ($template_size)${ENDMARKER}"
     msg4 "Start it up with: ${CGreen}pct start $CT_NEXT_ID${ENDMARKER}"
 }
+
 function vm_ct_prep() {
-    
     if [[ "$OPT_IGNORE_PREP" -eq 1 ]]; then
-        #check_warn "Ignoring DietPi specific VM Prep"
+        return
+    fi
+    vm_ct_prep_dietpi
+}
+
+function vm_ct_prep_dietpi() {
+    
+    if [[ "$OPT_IGNORE_DIETPI" -eq 1 ]]; then
         return
     fi
     
@@ -445,7 +459,7 @@ function create_vm_snapshot() {
     msg "$c_status"
 
     ssh "root@$PVE_SOURCE" \
-        "$(typeset -f vm_ct_prep); $(typeset -f vm_fs_snapshot); vm_ct_prep; vm_fs_snapshot" \
+        "$(typeset -f vm_ct_prep); $(typeset -f vm_fs_snapshot); $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); vm_ct_prep; vm_fs_snapshot" \
         >"$PVE_SOURCE_OUTPUT"
 
     msg_done "$c_status"
