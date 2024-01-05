@@ -2,6 +2,21 @@
 
 ![Proxomx DietPi VM to Container](artefacts/logo.png)
 
+<table>
+  <tr>
+    <th>Script Version</th>
+    <td><a href="https://github.com/thushan/proxmox-vm-to-ct/blob/main/proxmox-vm-to-ct.sh">v0.6.0</a></td>
+  </tr>
+  <tr>
+    <th>Proxmox Versions</th>
+    <td>Proxmox 7.x | Proxmox 8.x</td>
+  </tr>
+  <tr>
+    <th>DietPi Versions</th>
+    <td>DietPi 6.x | 7.x | 8.x</td>
+  </tr>
+</table>
+
 This repository contains scripts and helpers to convert your [Proxmox](https://www.proxmox.com) VM's to containers - with a special emphasis on [DietPi](https://dietpi.com/) VMs.
 
 ## How to use
@@ -110,6 +125,29 @@ Options:
   --help
       Display this help message
 ```
+
+## DietPi Changes
+
+The script prep's a DietPi (6, 7 or 8.x release) by making the following changes:
+
+* Sets the `.dietpi_hw_model_identifier` from `21` (`x86_64`) to `75` (`container`) as per [documentation](https://github.com/MichaIng/DietPi/blob/master/dietpi/func/dietpi-obtain_hw_model#L27)
+* Sets up first-login install sequence (even if you've done it already) so each container gets updates and updating of passwords instead of any randomly generated ones from the script by modifying `/boot/dietpi/.installstage`.
+* Stops DietPi-CloudShell which is CloudHell when you reboot as a container in Proxmox otherwise.
+* Adds the purging of `grub-pc tiny-initramfs linux-image-amd64` packages which aren't required as a container.
+
+The changes are found in the `vm_ct_prep` function (a snapshot can be found [here](https://github.com/thushan/proxmox-vm-to-ct/blob/198a7516c04c044ed90645864643677004884586/proxmox-vm-to-ct.sh#L395).)
+
+### Grub Boot, OMG WHAT?
+
+OMG, what the heck is this?
+
+![Grub Prune](artefacts/intro-proxmox-ct-grub.png)
+
+Don't worry, your DietPi image doesn't need `grub-pc,m tiny-initramfs & linux-image-amd64` packages, so they were removed and it's asking whether to remove them from Grub. You can say `YES`.
+
+# Issues, Comments, Improvements
+
+Always welcome contributions, feedback or revisions! Fork the repository and PR back :-)
 
 # Acknowledgements
 
