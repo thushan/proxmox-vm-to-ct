@@ -4,19 +4,16 @@
 # Author: Thushan Fernando <thushan.fernando@gmail.com>
 # http://www.github.com/thushan/proxmox-vm-to-ct
 
-VERSION=0.0.1
+VERSION=0.6.0
 
 set -Eeuo pipefail
 set -o nounset
 set -o errexit
-#trap cleanup EXIT
+trap cleanup EXIT
 
 if [[ "${TRACE-0}" == "1" ]]; then
     set -o xtrace
 fi
-
-readonly ARGS="$@"
-readonly ARGNUM="$#"
 
 PVE_SOURCE=""
 PVE_TARGET=""
@@ -30,6 +27,10 @@ OPT_IGNORE_PREP=0
 OPT_PROMPT_PASS=0
 INT_PROMPT_PASS=0
 
+# Used to determine whether to cleanup
+# invalid templates or not
+CT_SUCCESS=0
+
 CT_DEFAULT_CPU=2
 CT_DEFAULT_RAM=2048
 CT_DEFAULT_HDD=20
@@ -39,6 +40,17 @@ CT_DEFAULT_FEATURES="nesting=1"
 CT_DEFAULT_ONBOOT=0
 CT_DEFAULT_ARCH="amd64"
 CT_DEFAULT_OSTYPE="debian"
+
+# todo: make these configurable from CLI later
+CT_CPU=$CT_DEFAULT_CPU
+CT_RAM=$CT_DEFAULT_RAM
+CT_HDD=$CT_DEFAULT_HDD
+CT_UNPRIVILEGED=$CT_DEFAULT_UNPRIVILEGED
+CT_NETWORKING=$CT_DEFAULT_NETWORKING
+CT_FEATURES=$CT_DEFAULT_FEATURES
+CT_ONBOOT=$CT_DEFAULT_ONBOOT
+CT_ARCH=$CT_DEFAULT_ARCH
+CT_OSTYPE=$CT_DEFAULT_OSTYPE
 
 function usage() {
     echo "Usage: $0 --storage <name> --target <name> --source <hostname> [options]"
@@ -121,6 +133,7 @@ CBlue=$(tput setaf 4)
 CMagenta=$(tput setaf 5)
 CCyan=$(tput setaf 6)
 CWhite=$(tput setaf 7)
+CPurple=$(tput setaf 171)
 COrange=$(tput setaf 202)
 CProxmox=$(tput setaf 166)
 CDietPi=$(tput setaf 112)
@@ -144,6 +157,9 @@ function banner() {
 function msg() {
     echo "${CMagenta}$1${ENDMARKER}"
 }
+function msg_done() {
+    echo "${CMagenta}$1${ENDMARKER}${CGreen}Done!${ENDMARKER}"
+}
 function msg2() {
     echo "${CCyan}$1${ENDMARKER}"
 }
@@ -151,6 +167,9 @@ function msg3() {
     echo "${CWhite}$1${ENDMARKER}"
 }
 
+function msg4() {
+    echo "${CYellow}$1${ENDMARKER}"
+}
 function error() {
     echo "${BOLD}${CRed}ERROR:${UNBOLD}${ENDMARKER} $1${ENDMARKER}" >&2
 }
@@ -198,7 +217,7 @@ function check_shell() {
 }
 
 function check_proxmox_storage() {
-    if [[ ${PVE_STORAGE_LIST[@]} =~ $PVE_STORAGE ]]; then
+    if [[ ${PVE_STORAGE_LIST[*]} =~ $PVE_STORAGE ]]; then
         check_ok "Storage ${CBlue}$PVE_STORAGE${ENDMARKER} found"
     else
         IFS=,
@@ -207,6 +226,15 @@ function check_proxmox_storage() {
             echo "${PVE_STORAGE_LIST[*]}"
         )${ENDMARKER})"
         fatal "Please specify a valid storage name"
+    fi
+}
+function check_proxmox_container() {
+    local containers=$(pct list | awk 'NR>1 {print $NF}')    
+    if [[ ${containers[*]} =~ $PVE_TARGET ]]; then
+        check_error "Container ${CBlue}$PVE_TARGET${ENDMARKER} already exists"
+        fatal "Please specify a different container name"
+    else
+        check_ok "Container ${CBlue}$PVE_TARGET${ENDMARKER} unique"
     fi
 }
 
@@ -262,17 +290,17 @@ function create_container() {
     # https://pve.proxmox.com/pve-docs/pct.1.html
 
     pct create $CT_NEXT_ID "$PVE_SOURCE_OUTPUT" \
-        --description $PVE_DESCRIPTION \
-        --hostname $PVE_TARGET \
-        --arch $CT_ARCH \
+        --description "$PVE_DESCRIPTION" \
+        --hostname "$PVE_TARGET" \
+        --arch "$CT_ARCH" \
         --cores $CT_CPU \
         --memory $CT_RAM \
         --rootfs $CT_HDD \
         --net0 $CT_NETWORKING \
-        --ostype $CT_OSTYPE \
-        --features $CT_FEATURES \
+        --ostype "$CT_OSTYPE" \
+        --features "$CT_FEATURES" \
         --storage $PVE_STORAGE \
-        --password $CT_PASSWORD \
+        --password "$CT_PASSWORD" \
         --unprivileged $CT_UNPRIVILEGED \
         --onboot $CT_ONBOOT
 }
@@ -293,74 +321,110 @@ function map_ct_to_defaults() {
 }
 
 function print_opts() {
+    local c_status="Gathering options..."    
     local CT_SECURE_PASSWORD="**********"
     
     if [[ "$OPT_PROMPT_PASS" -eq 0 ]] && [[ "$INT_PROMPT_PASS" -eq 0 ]]; then
         CT_SECURE_PASSWORD=$CT_PASSWORD
     fi
 
-    msg "Gathering options..."
-    msg3 "PVE Storage:     ${CBlue}$PVE_STORAGE${ENDMARKER}"
-    msg3 "Source VM:       ${CBlue}$PVE_SOURCE${ENDMARKER}"
-    msg3 "- Output:        ${CCyan}$PVE_SOURCE_OUTPUT${ENDMARKER}"
-    msg3 "- Cleanup:       ${CCyan}$OPT_CLEANUP${ENDMARKER}"
-    msg3 "Target CT:       ${CBlue}$PVE_TARGET${ENDMARKER}"
-    msg3 "- Password:      ${CRed}$CT_SECURE_PASSWORD${ENDMARKER}"
-    msg3 "Default Config:  ${CBlue}$OPT_DEFAULT_CONFIG${ENDMARKER}"
-    msg3 "- ID:            ${CCyan}$CT_NEXT_ID${ENDMARKER}"
-    msg3 "- ARCH:          ${CCyan}$CT_ARCH${ENDMARKER}"
-    msg3 "- CPU:           ${CCyan}$CT_CPU${ENDMARKER}"
-    msg3 "- RAM:           ${CCyan}$CT_RAM${ENDMARKER}"
-    msg3 "- HDD:           ${CCyan}$CT_HDD${ENDMARKER}"
-    msg3 "- OSTYPE:        ${CCyan}$CT_OSTYPE${ENDMARKER}"
-    msg3 "- NETWORK:       ${CCyan}$CT_NETWORKING${ENDMARKER}"
-    msg3 "- FEATURES:      ${CCyan}$CT_FEATURES${ENDMARKER}"
-    msg3 "- UNPRIV:        ${CCyan}$CT_UNPRIVILEGED${ENDMARKER}"
-    msg3 "- ONBOOT:        ${CCyan}$CT_ONBOOT${ENDMARKER}"
-    msg "Gathering options...Done!"
+    msg "$c_status"
+    msg3 "PVE Storage:      ${CBlue}$PVE_STORAGE${ENDMARKER}"
+    msg3 "Source VM:        ${CBlue}$PVE_SOURCE${ENDMARKER}"
+    msg3 "- Output:         ${CCyan}$PVE_SOURCE_OUTPUT${ENDMARKER}"
+    msg3 "- Cleanup:        ${CCyan}$OPT_CLEANUP${ENDMARKER}"
+    msg3 "Target CT:        ${CBlue}$PVE_TARGET${ENDMARKER}"
+    msg3 "- Password:       ${CRed}$CT_SECURE_PASSWORD${ENDMARKER}"
+    msg3 "Default Config:   ${CBlue}$OPT_DEFAULT_CONFIG${ENDMARKER}"
+    msg3 "- ID:             ${CCyan}$CT_NEXT_ID${ENDMARKER}"
+    msg3 "- ARCH:           ${CCyan}$CT_ARCH${ENDMARKER}"
+    msg3 "- CPU:            ${CCyan}$CT_CPU${ENDMARKER}"
+    msg3 "- RAM:            ${CCyan}$CT_RAM${ENDMARKER}"
+    msg3 "- HDD:            ${CCyan}$CT_HDD${ENDMARKER}"
+    msg3 "- OSTYPE:         ${CCyan}$CT_OSTYPE${ENDMARKER}"
+    msg3 "- NETWORK:        ${CCyan}$CT_NETWORKING${ENDMARKER}"
+    msg3 "- FEATURES:       ${CCyan}$CT_FEATURES${ENDMARKER}"
+    msg3 "- UNPRIV:         ${CCyan}$CT_UNPRIVILEGED${ENDMARKER}"
+    msg3 "- ONBOOT:         ${CCyan}$CT_ONBOOT${ENDMARKER}"
+    msg_done "$c_status"
 }
 function validate_env() {
-    msg "Validating environment..."
+    local c_status="Validating environment..."
+    msg "$c_status"
     check_sudo
     check_arch
     check_shell
     check_proxmox
     check_proxmox_version
     check_proxmox_storage
-    msg "Validating environment...done!"
+    check_proxmox_container
+    msg_done "$c_status"
 }
 
-vm_ct_prep() {
+function created_container_verify() {
+    local c_status="Verifying Container ${CBlue}$PVE_TARGET${ENDMARKER}..."
+    msg "$c_status"
+    local containers=$(pct list | awk 'NR>1 {print $NF}')    
+    if [[ ${containers[*]} =~ $PVE_TARGET ]]; then
+        check_ok "Container ${CBlue}$PVE_TARGET${ENDMARKER} created :)"
+        CT_SUCCESS=1
+    else
+        check_error "Container ${CBlue}$PVE_TARGET${ENDMARKER} failed to create :("
+        fatal "Container creation failed, check output above or log a bug!"
+    fi
+    msg_done "$c_status"
+}
+function created_container_print_opts() {
+    local CT_SECURE_PASSWORD="¯\_(ツ)_/¯"
     
-    if [[ "$OPT_IGNORE_PREP" -eq 1 ]]; then
-        check_warn "Ignoring DietPi specific VM Prep"
-        return
+    if [[ "$OPT_PROMPT_PASS" -eq 0 ]] && [[ "$INT_PROMPT_PASS" -eq 0 ]]; then
+        CT_SECURE_PASSWORD=$CT_PASSWORD
     fi
 
-    msg "Preparing DietPi VM..."
+    local template_size=$(du -h "$PVE_SOURCE_OUTPUT" | cut -f1)
+
+    msg4 "=== '${CBlue}$PVE_TARGET${ENDMARKER}${CYellow}' Summary ===${ENDMARKER}"
+    msg3 "Container:        ${CBlue}$PVE_TARGET${ENDMARKER}"
+    msg3 "- ID:             ${CCyan}$CT_NEXT_ID${ENDMARKER}"
+    msg3 "- Password:       ${CRed}$CT_SECURE_PASSWORD${ENDMARKER}"
+    msg3 "- Storage:        ${CCyan}$PVE_STORAGE${ENDMARKER}"
+    msg3 "- Template:       ${CCyan}$PVE_SOURCE_OUTPUT ($template_size)${ENDMARKER}"
+    msg4 "Start it up with: ${CGreen}pct start $CT_NEXT_ID${ENDMARKER}"
+}
+function vm_ct_prep() {
+    
+    if [[ "$OPT_IGNORE_PREP" -eq 1 ]]; then
+        #check_warn "Ignoring DietPi specific VM Prep"
+        return
+    fi
     
     # Tell DietPi we're in a container
     # src: https://github.com/MichaIng/DietPi/blob/master/dietpi/func/dietpi-obtain_hw_model#L27
     echo 75 > /etc/.dietpi_hw_model_identifier
-    check_ok "HW Model Identifier set to ${CBlue}75${ENDMARKER}"
 
     # Ensure DietPi installs updates & sets passwords for CT
     # by going back to install_stage 1 (it'll be 2 now)
     echo 1 > /boot/dietpi/.install_stage
 
     # Disable CloudShell, interferes with CT
-    systemctl disable --now dietpi-cloudshell
-    rm /etc/systemd/system/dietpi-cloudshell.service
-    systemctl daemon-reload
-    check_ok "Disabled ${CBlue}dietpi-cloudshell${ENDMARKER}"
+    local DPI_CLOUDSHELL_SERVICE_PATH=/etc/systemd/system/dietpi-cloudshell.service
+    local DPI_CLOUDSHELL_SERVICE_NAME=dietpi-cloudshell
+
+    if [ -e $DPI_CLOUDSHELL_SERVICE_PATH ]; then
+        if systemctl is-enabled --quiet "$DPI_CLOUDSHELL_SERVICE_NAME"; then
+            systemctl stop "$DPI_CLOUDSHELL_SERVICE_NAME"
+            systemctl disable --now "$DPI_CLOUDSHELL_SERVICE_NAME"
+            rm -f "$DPI_CLOUDSHELL_SERVICE_PATH"
+            systemctl daemon-reload
+        fi
+    fi
 
     # Purge unnecessary packages, this may grow in the future, but simples for now.
-    echo "apt autopurge grub-pc tiny-initramfs linux-image-amd64" > /boot/Automation_Custom_Script.sh
-    check_ok "Added Automated Script to purge ${CBlue}autopurge grub-pc, tiny-initramfs, linux-image-amd64${ENDMARKER}"
-
-    msg "Preparing DietPi VM...Done!"
+    echo "apt autopurge -y grub-pc tiny-initramfs linux-image-amd64" > /boot/Automation_Custom_Script.sh
 }
-vm_fs_snapshot() {
+
+function vm_fs_snapshot() {
+    # credit https://github.com/my5t3ry/machine-to-proxmox-lxc-ct-converter/blob/master/convert.sh#L53
     tar -czvvf - -C / \
         --exclude="sys" \
         --exclude="dev" \
@@ -375,14 +439,20 @@ vm_fs_snapshot() {
 }
 
 function create_vm_snapshot() {
-    ssh "root@$PVE_SOURCE" \ 
+    local c_status="${CMagenta}SSH Session:${ENDMARKER} ${CBlue}$PVE_SOURCE${ENDMARKER}..."
+    
+    msg "$c_status"
+
+    ssh "root@$PVE_SOURCE" \
         "$(typeset -f vm_ct_prep); $(typeset -f vm_fs_snapshot); vm_ct_prep; vm_fs_snapshot" \
-        >"/tmp/$PVE_SOURCE_OUTPUT.tar.gz"
+        >"$PVE_SOURCE_OUTPUT"
+
+    msg_done "$c_status"
 }
 function prompt_password() {    
     
     if PROMPT_PASS=$(whiptail --passwordbox "Enter a Password for your container '$PVE_TARGET'. (leave empty for a random one)" --title "Choose a strong password" 10 50 --cancel-button Exit 3>&1 1>&2 2>&3); then
-        if [ -z $PROMPT_PASS ]; then
+        if [ -z "${PROMPT_PASS}" ]; then
             CT_PASSWORD=$TEMP_PASS
             INT_PROMPT_PASS=0
         else
@@ -393,9 +463,34 @@ function prompt_password() {
         fatal-script
     fi
 }
+
+function ensure_env() {
+    local c_status="Creating environment..."
+    msg "$c_status"
+    mkdir -p $TEMP_DIR
+    msg_done "$c_status"
+}
+cleanup () {
+    # https://www.youtube.com/watch?v=4F4qzPbcFiA
+    local c_status="Cleaning up..."
+    msg "$c_status"
+    if [[ "$OPT_CLEANUP" -eq 1 || "$CT_SUCCESS" -eq 0 ]] && [[ -f "$PVE_SOURCE_OUTPUT" ]]; then
+        
+        local template_size_before=$(du -h "$PVE_SOURCE_OUTPUT" | cut -f1)
+
+        rm -rf "$PVE_SOURCE_OUTPUT"
+        
+        if [[ $? -ne 0 ]]; then 
+            check_error "Failed to cleanup ${CBlue}$PVE_SOURCE_OUTPUT${ENDMARKER} :()"
+        else
+            check_ok "Removed  ${CBlue}$PVE_SOURCE_OUTPUT${ENDMARKER} (-$template_size_before)"
+        fi 
+    fi
+    msg_done "$c_status"
+}
 main() {
     CT_NEXT_ID=$(pvesh get /cluster/nextid)
-    TEMP_DIR=/tmp/proxmox-vm-to-ct/
+    TEMP_DIR=/tmp/proxmox-vm-to-ct
     TEMP_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10; echo)
 
     if [[ "$OPT_SOURCE_OUTPUT" ]]; then
@@ -417,9 +512,12 @@ main() {
 
     print_opts
     validate_env
-    #create_vm_snapshot
-    #create_container
-
+    ensure_env
+    create_vm_snapshot
+    create_container
+    created_container_verify
+    created_container_print_opts
+    # cleanup is called via trap, so no need to call it here    
 }
 
 check_args
