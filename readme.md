@@ -81,7 +81,7 @@ The `proxmox-vm-to-ct.sh` script takes a few arguments to create a container fro
 
 ### Examples
 
-For a running VM named `the-matrix-sql` (with ID: `100`; IP: `192.168.0.152`), to create a container named `the-matrix-reloaded` on a Proxmox Server where the storage container is named `local-zfs`:
+For a running VM named `the-matrix-sql` (with ID: `100`; IP: `192.168.0.152`), to create a (default) container named `the-matrix-reloaded` on a Proxmox Server where the storage container is named `local-lvm`:
 
 ```
 $ proxmox-vm-to-ct.sh --source 192.168.0.152 --target the-matrix-reloaded --storage local-lvm --default-config
@@ -104,7 +104,8 @@ After a few moments, you'll see that you've got yourself a new container named `
 > However, if you want to retain the files for later, you can use the `--source-output` argument with a path to save it.
 > Eg. `--save-output ~/dietpi-first-attempt.tar.gz`
 
-### Usage
+
+## Usage
 ```
 Usage: dietpi/proxmox-vm-to-ct.sh --storage <name> --target <name> --source <hostname> [options]
 
@@ -129,7 +130,22 @@ Options:
       Display this help message
 ```
 
-## DietPi Changes
+### Default Configuration
+
+The default Container settings (stored in `CT_DEFAULT_*` vars) that are activated with the switch `--default-config` are:
+
+* CPU: 2 cores
+* RAM: 2048MB
+* HDD: 20GB
+* NET: `name=eth0,ip=dhcp,ip6=auto,bridge=vmbr0,firewall=1`
+* ARCH: amd64
+* OSTYPE: debian
+* ONBOOT: `false`
+* UNPRIVILEGED: `true`
+
+At this time, you'll have to modify the file to change that configuration - but will be implemented soon via commandline.
+
+### DietPi Changes
 
 The script prep's a DietPi (6, 7 or 8.x release) by making the following changes:
 
