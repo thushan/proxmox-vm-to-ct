@@ -52,6 +52,9 @@ $ chmod +x ./proxmox-vm-to-ct.sh
 ## The Process
 
 1. Install your 'base' image as a VM (be it DietPi or Debian etc.) on Proxmox as normal.
+
+   You could opt to use [@dazeb/proxmox-dietpi-installer](https://github.com/dazeb/proxmox-dietpi-installer) to automate it.
+
    * Configure the VM with the core tools you'd like.
      * Eg. Tools `vim`, `tmux` etc.
      * Eg. Settings region, network, wifi etc.   
@@ -133,7 +136,7 @@ The script prep's a DietPi (6, 7 or 8.x release) by making the following changes
 * Sets the `.dietpi_hw_model_identifier` from `21` (`x86_64`) to `75` (`container`) as per [documentation](https://github.com/MichaIng/DietPi/blob/master/dietpi/func/dietpi-obtain_hw_model#L27)
 * Sets up first-login install sequence (even if you've done it already) so each container gets updates and updating of passwords instead of any randomly generated ones from the script by modifying `/boot/dietpi/.installstage`.
 * Stops DietPi-CloudShell which is CloudHell when you reboot as a container in Proxmox otherwise.
-* Adds the purging of `grub-pc tiny-initramfs linux-image-amd64` packages which aren't required as a container.
+* Adds the purging of `grub-pc tiny-initramfs linux-image-amd64` packages which aren't required as a container - see [Michalng's comment](https://dietpi.com/blog/?p=2642#comment-5808).
 
 The changes are found in the `vm_ct_prep` function (a snapshot can be found [here](https://github.com/thushan/proxmox-vm-to-ct/blob/198a7516c04c044ed90645864643677004884586/proxmox-vm-to-ct.sh#L395).)
 
@@ -160,3 +163,4 @@ And references:
 
 * [Proxmox: `pct` documentation](https://pve.proxmox.com/pve-docs/pct.1.html)
 * [DietPi: HW Models](https://github.com/MichaIng/DietPi/blob/master/dietpi/func/dietpi-obtain_hw_model)
+* [@dazen/proxmox-dietpi-installer](https://github.com/dazeb/proxmox-dietpi-installer)
