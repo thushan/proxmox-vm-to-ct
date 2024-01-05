@@ -5,7 +5,7 @@
 <table>
   <tr>
     <th>Script Version</th>
-    <td><a href="https://github.com/thushan/proxmox-vm-to-ct/blob/main/proxmox-vm-to-ct.sh">v0.6.0</a></td>
+    <td><a href="https://github.com/thushan/proxmox-vm-to-ct/blob/main/proxmox-vm-to-ct.sh">v0.7.0</a></td>
   </tr>
   <tr>
     <th>Proxmox Versions</th>
@@ -24,7 +24,7 @@ This repository contains scripts and helpers to convert your [Proxmox](https://w
 > \[!NOTE]
 > Whilst you can use this for any VM to  CT, this script has primarily been tweaked for DietPi.
 >
-> You can disable DietPi specific changes with the `--ignore-prep` switch for other OS's.
+> You can disable DietPi specific changes with the `--ignore-dietpi` or the `--ignore-prep` switch for other OS's.
 
 ```shell
 bash <(curl -sSfL https://raw.githubusercontent.com/thushan/proxmox-vm-to-ct/main/proxmox-vm-to-ct.sh)
@@ -124,6 +124,8 @@ Options:
       Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)
   --ignore-prep
       Ignore modifying the VM before snapshotting
+  --ignore-dietpi
+      Ignore DietPi specific modifications on the VM before snapshotting. (ignored with --ignore-prep)
   --prompt-password
       Prompt for a password for the container, temporary one generated & displayed otherwise
   --help
@@ -155,6 +157,8 @@ The script prep's a DietPi (6, 7 or 8.x release) by making the following changes
 * Adds the purging of `grub-pc tiny-initramfs linux-image-amd64` packages which aren't required as a container - see [Michalng's comment](https://dietpi.com/blog/?p=2642#comment-5808).
 
 The changes are found in the `vm_ct_prep` function (a snapshot can be found [here](https://github.com/thushan/proxmox-vm-to-ct/blob/198a7516c04c044ed90645864643677004884586/proxmox-vm-to-ct.sh#L395).)
+
+You can skip these for non-DietPi images with `--ignore-dietpi` or overall `--ignore-prep` switches.
 
 ### Grub Boot, OMG WHAT?
 
