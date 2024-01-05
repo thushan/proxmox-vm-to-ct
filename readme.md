@@ -1,11 +1,20 @@
 # Proxmox VM to Container
 
+<div align="center">
+
 ![Proxomx DietPi VM to Container](artefacts/logo.png)
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
+![Updated](https://img.shields.io/github/last-commit/thushan/proxmox-vm-to-ct)
+![Proxmox](https://img.shields.io/badge/-Proxmox-orange)
+![DietPi](https://img.shields.io/badge/-DietPi-C1FF00)
+
+</div>
 
 <table>
   <tr>
     <th>Script Version</th>
-    <td><a href="https://github.com/thushan/proxmox-vm-to-ct/blob/main/proxmox-vm-to-ct.sh">v0.7.0</a></td>
+    <td><a href="https://github.com/thushan/proxmox-vm-to-ct/blob/main/proxmox-vm-to-ct.sh">v0.8.0</a></td>
   </tr>
   <tr>
     <th>Proxmox Versions</th>

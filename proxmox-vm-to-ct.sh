@@ -4,7 +4,7 @@
 # Author: Thushan Fernando <thushan.fernando@gmail.com>
 # http://github.com/thushan/proxmox-vm-to-ct
 
-VERSION=0.7.0
+VERSION=0.8.0
 
 set -Eeuo pipefail
 set -o nounset
@@ -53,83 +53,6 @@ CT_FEATURES=$CT_DEFAULT_FEATURES
 CT_ONBOOT=$CT_DEFAULT_ONBOOT
 CT_ARCH=$CT_DEFAULT_ARCH
 CT_OSTYPE=$CT_DEFAULT_OSTYPE
-
-function usage() {
-    echo "Usage: $0 --storage <name> --target <name> --source <hostname> [options]"
-    echo "Options:"
-    echo "  --storage <name>"
-    echo "      Name of the Proxmox Storage container (Eg. local-zfs, local-lvm, etc)"
-    echo "  --target <name>"
-    echo "      Name of the container to create (Eg. postgres-ct)"
-    echo "  --source <hostname>"
-    echo "      Source VM to convert to CT (Eg. postgres-vm.fritz.box or 192.168.0.10)"
-    echo "  --source-output <path>, --output <path>, -o <path>"
-    echo "      Location of the source VM output (default: /tmp/proxmox-vm-to-ct/<hostname>.tar.gz)"
-    echo "  --cleanup"
-    echo "      Cleanup the source compressed image after conversion (the *.tar.gz file)"
-    echo "  --default-config"
-    echo "      Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)"
-    echo "  --ignore-prep"
-    echo "      Ignore modifying the VM before snapshotting"
-    echo "  --ignore-dietpi"
-    echo "      Ignore DietPi specific modifications on the VM before snapshotting. (ignored with --ignore-prep)"
-    echo "  --prompt-password"
-    echo "      Prompt for a password for the container, temporary one generated & displayed otherwise"
-    echo "  --help"
-    echo "      Display this help message"
-}
-
-while [ "$#" -gt 0 ]; do
-    case "$1" in
-    --help)
-        usage
-        exit 0
-        ;;
-    --source)
-        PVE_SOURCE="$2"
-        shift
-        ;;
-    --storage)
-        PVE_STORAGE="$2"
-        shift
-        ;;
-    --target)
-        PVE_TARGET="$2"
-        shift
-        ;;
-    -o | --output | --source-output)
-        OPT_SOURCE_OUTPUT="$2"
-        shift
-        ;;
-    --cleanup)
-        OPT_CLEANUP=1
-        ;;
-    --default-config)
-        OPT_DEFAULT_CONFIG=1
-        ;;
-    --ignore-prep)
-        OPT_IGNORE_PREP=1
-        shift
-        ;;
-    --ignore-dietpi)
-        OPT_IGNORE_DIETPI=1
-        shift
-        ;;
-    --prompt-password)
-        OPT_PROMPT_PASS=1
-        shift
-        ;;
-    --)
-        break
-        ;;
-    -*)
-        echo "Invalid option '$1'. Use --help to see the valid options" >&2
-        exit 1
-        ;;
-    *) ;;
-    esac
-    shift
-done
 
 CGrey=$(tput setaf 239)
 CBlack=$(tput setaf 0)
@@ -459,7 +382,7 @@ function create_vm_snapshot() {
     msg "$c_status"
 
     ssh "root@$PVE_SOURCE" \
-        "$(typeset -f vm_ct_prep); $(typeset -f vm_fs_snapshot); $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); vm_ct_prep; vm_fs_snapshot" \
+        "$(typeset -f vm_ct_prep); $(typeset -f vm_ct_prep_dietpi); $(typeset -f vm_fs_snapshot); $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); vm_ct_prep; vm_fs_snapshot" \
         >"$PVE_SOURCE_OUTPUT"
 
     msg_done "$c_status"
@@ -485,7 +408,8 @@ function ensure_env() {
     mkdir -p $TEMP_DIR
     msg_done "$c_status"
 }
-cleanup () {
+
+function cleanup () {
     # https://www.youtube.com/watch?v=4F4qzPbcFiA
     local c_status="Cleaning up..."
     msg "$c_status"
@@ -503,7 +427,8 @@ cleanup () {
     fi
     msg_done "$c_status"
 }
-main() {
+
+function main() {
     CT_NEXT_ID=$(pvesh get /cluster/nextid)
     TEMP_DIR=/tmp/proxmox-vm-to-ct
     TEMP_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10; echo)
@@ -534,6 +459,83 @@ main() {
     created_container_print_opts
     # cleanup is called via trap, so no need to call it here    
 }
+
+function usage() {
+    echo "Usage: $0 --storage <name> --target <name> --source <hostname> [options]"
+    echo "Options:"
+    echo "  --storage <name>"
+    echo "      Name of the Proxmox Storage container (Eg. local-zfs, local-lvm, etc)"
+    echo "  --target <name>"
+    echo "      Name of the container to create (Eg. postgres-ct)"
+    echo "  --source <hostname>"
+    echo "      Source VM to convert to CT (Eg. postgres-vm.fritz.box or 192.168.0.10)"
+    echo "  --source-output <path>, --output <path>, -o <path>"
+    echo "      Location of the source VM output (default: /tmp/proxmox-vm-to-ct/<hostname>.tar.gz)"
+    echo "  --cleanup"
+    echo "      Cleanup the source compressed image after conversion (the *.tar.gz file)"
+    echo "  --default-config"
+    echo "      Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)"
+    echo "  --ignore-prep"
+    echo "      Ignore modifying the VM before snapshotting"
+    echo "  --ignore-dietpi"
+    echo "      Ignore DietPi specific modifications on the VM before snapshotting. (ignored with --ignore-prep)"
+    echo "  --prompt-password"
+    echo "      Prompt for a password for the container, temporary one generated & displayed otherwise"
+    echo "  --help"
+    echo "      Display this help message"
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+    --help)
+        usage
+        exit 0
+        ;;
+    --source)
+        PVE_SOURCE="$2"
+        shift
+        ;;
+    --storage)
+        PVE_STORAGE="$2"
+        shift
+        ;;
+    --target)
+        PVE_TARGET="$2"
+        shift
+        ;;
+    -o | --output | --source-output)
+        OPT_SOURCE_OUTPUT="$2"
+        shift
+        ;;
+    --cleanup)
+        OPT_CLEANUP=1
+        ;;
+    --default-config)
+        OPT_DEFAULT_CONFIG=1
+        ;;
+    --ignore-prep)
+        OPT_IGNORE_PREP=1
+        shift
+        ;;
+    --ignore-dietpi)
+        OPT_IGNORE_DIETPI=1
+        shift
+        ;;
+    --prompt-password)
+        OPT_PROMPT_PASS=1
+        shift
+        ;;
+    --)
+        break
+        ;;
+    -*)
+        echo "Invalid option '$1'. Use --help to see the valid options" >&2
+        exit 1
+        ;;
+    *) ;;
+    esac
+    shift
+done
 
 check_args
 
