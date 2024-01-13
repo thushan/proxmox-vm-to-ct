@@ -14,7 +14,7 @@
 <table>
   <tr>
     <th>Script Version</th>
-    <td><a href="https://github.com/thushan/proxmox-vm-to-ct/blob/main/proxmox-vm-to-ct.sh">v0.8.0</a></td>
+    <td><a href="https://github.com/thushan/proxmox-vm-to-ct/blob/main/proxmox-vm-to-ct.sh">v0.8.1</a></td>
   </tr>
   <tr>
     <th>Proxmox Versions</th>
@@ -29,11 +29,6 @@
 This repository contains scripts and helpers to convert your [Proxmox](https://www.proxmox.com) VM's to containers - with a special emphasis on [DietPi](https://dietpi.com/) VMs.
 
 ## How to use
-
-> \[!NOTE]
-> Whilst you can use this for any VM to  CT, this script has primarily been tweaked for DietPi.
->
-> You can disable DietPi specific changes with the `--ignore-dietpi` or the `--ignore-prep` switch for other OS's.
 
 Clone the repository with `git`, mark the script as executable and you're on your way!
 

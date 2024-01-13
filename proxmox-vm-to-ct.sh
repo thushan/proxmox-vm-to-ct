@@ -4,7 +4,7 @@
 # Author: Thushan Fernando <thushan.fernando@gmail.com>
 # http://github.com/thushan/proxmox-vm-to-ct
 
-VERSION=0.8.0
+VERSION=0.8.1
 
 set -Eeuo pipefail
 set -o nounset
@@ -331,8 +331,10 @@ function vm_ct_prep() {
 }
 
 function vm_ct_prep_dietpi() {
-    
-    if [[ "$OPT_IGNORE_DIETPI" -eq 1 ]]; then
+    local dietpi_version=/boot/dietpi/.version
+
+    # Check for the existence of DietPi version file & bail if we can't find it
+    if [[ "$OPT_IGNORE_DIETPI" -eq 1 || ! -f "$dietpi_version" ]]; then
         return
     fi
     
