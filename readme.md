@@ -26,7 +26,7 @@
   </tr>
 </table>
 
-This repository contains scripts and helpers to convert your [Proxmox](https://www.proxmox.com) VM's to containers - with a special emphasis on [DietPi](https://dietpi.com/) VMs.
+This repository contains scripts and helpers to convert your [Proxmox](https://www.proxmox.com) VM's to containers - with a special emphasis on [DietPi](https://dietpi.com/) VMs, but [the tweaks for DietPi](#dietpi-changes) are ignored on non-DietPi distributions.
 
 ## How to use
 
@@ -45,7 +45,7 @@ wget https://raw.githubusercontent.com/thushan/proxmox-vm-to-ct/main/proxmox-vm-
 chmod +x ./proxmox-vm-to-ct.sh
 ```
 
-Once downloaded, to create an container for the vm '`the-matrix`' named '`matrix-reloaded`' with the default configuration on your pve storage `local-zfs`:
+Once downloaded, to create an container for the vm '`the-matrix`' named '`matrix-reloaded`' with the [default CT configuration](#default-configuration) on your pve storage `local-zfs`:
 
 ```shell
 ./proxmox-vm-to-ct.sh --source the-matrix \
@@ -64,9 +64,10 @@ See further [examples](#Examples) below.
 
    * Configure the VM with the core tools you'd like.
      * Eg. Tools `vim`, `tmux` etc.
-     * Eg. Settings region, network, wifi etc.   
-2. Run the `proxmox-vm-to-ct.sh` script (described below) to create a Container image with the relevant configuration
-3. Start your fancy new containerised VM!
+     * Eg. Settings region, network, wifi etc.
+     * Eg. Configuration `.bashrc`, `.tmux.conf` etc.
+1. Run the `proxmox-vm-to-ct.sh` script (described below) to create a Container image from the VM.
+2. Start your fancy new containerised VM!
 
 ## Creating your Base VM
 
@@ -175,6 +176,10 @@ At this time, you'll have to modify the file to change that configuration - but 
 
 ### DietPi Changes
 
+> \[!NOTE]  
+> Changes are only made if we detect a DietPi installation by checking for
+> `/boot/dietpi/.version` file.
+
 The script prep's a DietPi (6, 7 or 8.x release) by making the following changes:
 
 * Sets the `.dietpi_hw_model_identifier` from `21` (`x86_64`) to `75` (`container`) as per [documentation](https://github.com/MichaIng/DietPi/blob/master/dietpi/func/dietpi-obtain_hw_model#L27)
@@ -184,7 +189,7 @@ The script prep's a DietPi (6, 7 or 8.x release) by making the following changes
 
 The changes are found in the `vm_ct_prep` function (a snapshot can be found [here](https://github.com/thushan/proxmox-vm-to-ct/blob/198a7516c04c044ed90645864643677004884586/proxmox-vm-to-ct.sh#L395).)
 
-You can skip these for non-DietPi images with `--ignore-dietpi` or overall `--ignore-prep` switches.
+You can skip these for non-DietPi images with `--ignore-dietpi` or overall `--ignore-prep` switches but are ignored if no DietPi image is detected too.
 
 ### Grub Boot, OMG WHAT?
 
