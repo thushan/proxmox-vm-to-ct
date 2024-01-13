@@ -35,28 +35,31 @@ This repository contains scripts and helpers to convert your [Proxmox](https://w
 >
 > You can disable DietPi specific changes with the `--ignore-dietpi` or the `--ignore-prep` switch for other OS's.
 
-```shell
-bash <(curl -sSfL https://raw.githubusercontent.com/thushan/proxmox-vm-to-ct/main/proxmox-vm-to-ct.sh)
-```
-
-See Examples below.
-
-### Alternatively
-
 Clone the repository with `git`, mark the script as executable and you're on your way!
 
 ```shell
-$ git clone https://github.com/thushan/proxmox-vm-to-ct.git
-$ cd proxmox-vm-to-ct
-$ chmod +x ./proxmox-vm-to-ct.sh
+git clone https://github.com/thushan/proxmox-vm-to-ct.git
+cd proxmox-vm-to-ct
+chmod +x ./proxmox-vm-to-ct.sh
 ```
 
 No git? No problemo, just `wget` it.
 
 ```shell
-$ wget https://raw.githubusercontent.com/thushan/proxmox-vm-to-ct/main/proxmox-vm-to-ct.sh
-$ chmod +x ./proxmox-vm-to-ct.sh
+wget https://raw.githubusercontent.com/thushan/proxmox-vm-to-ct/main/proxmox-vm-to-ct.sh
+chmod +x ./proxmox-vm-to-ct.sh
 ```
+
+Once downloaded, to create an container for the vm '`the-matrix`' named '`matrix-reloaded`' with the default configuration on your pve storage `local-zfs`:
+
+```shell
+./proxmox-vm-to-ct.sh --source the-matrix \
+                      --target matrix-reloaded \
+                      --storage local-zfs \
+                      --default-config
+```
+
+See further [examples](#Examples) below.
 
 ## The Process
 
@@ -90,10 +93,29 @@ The `proxmox-vm-to-ct.sh` script takes a few arguments to create a container fro
 
 ### Examples
 
-For a running VM named `the-matrix-sql` (with ID: `100`; IP: `192.168.0.152`), to create a (default) container named `the-matrix-reloaded` on a Proxmox Server where the storage container is named `local-lvm`:
+> \[!TIP]
+>
+> You can use the hostname (eg. `the-matrix.local`) or the IP itself for the source VM (`192.168.0.101`), either way
+> you're going to have to SSH into the box!
+
+For a running VM named `the-matrix-sql` (with ID: `100`; IP: `192.168.0.152`), to create a (default) container named `the-matrix-reloaded` on a Proxmox Server where the storage container is named `local-lvm` but store the created image for future use in you home folder:
 
 ```
-$ proxmox-vm-to-ct.sh --source 192.168.0.152 --target the-matrix-reloaded --storage local-lvm --default-config
+./proxmox-vm-to-ct.sh --source 192.168.0.152 \
+                      --target the-matrix-reloaded \
+                      --storage local-lvm \
+                      --default-config \
+                      -o ~/proxmox-dietpi.tar.gz
+```
+
+If you want to set a password but be prompted for it, append the `--prompt-password` option that will request your password securely, avoiding the auto-generated password.
+
+```
+./proxmox-vm-to-ct.sh --source 192.168.0.152 \
+                      --target the-matrix-reloaded \
+                      --storage local-lvm \
+                      --default-config \
+                      --prompt-password
 ```
 
 ![Alt text](artefacts/intro-proxmox-vm-to-ct-demo1.png)
