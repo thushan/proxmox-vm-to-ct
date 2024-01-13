@@ -134,7 +134,7 @@ After a few moments, you'll see that you've got yourself a new container named `
 
 ## Usage
 ```
-Usage: dietpi/proxmox-vm-to-ct.sh --storage <name> --target <name> --source <hostname> [options]
+Usage: proxmox-vm-to-ct.sh --storage <name> --target <name> --source <hostname> [options]
 
 Options:
   --storage <name>
