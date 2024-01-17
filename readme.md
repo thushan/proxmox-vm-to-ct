@@ -56,6 +56,14 @@ Once downloaded, to create an container for the vm '`the-matrix`' named '`matrix
 
 See further [examples](#Examples) below.
 
+> \[!TIP]
+>
+> If you don't want to keep the `*.targ.gz` file around, you can use the `--cleanup` switch to delete it after use.
+>
+> However, if you want to retain the files for later, you can use the `--source-output` argument with a path to save it.
+> Eg. `--source-output ~/dietpi-first-attempt.tar.gz`
+
+
 ## The Process
 
 1. Install your 'base' image as a VM (be it DietPi or Debian etc.) on Proxmox as normal.
@@ -94,6 +102,8 @@ The `proxmox-vm-to-ct.sh` script takes a few arguments to create a container fro
 > You can use the hostname (eg. `the-matrix.local`) or the IP itself for the source VM (`192.168.0.101`), either way
 > you're going to have to SSH into the box!
 
+#### Saving Source Output
+
 For a running VM named `the-matrix-sql` (with ID: `100`; IP: `192.168.0.152`), to create a (default) container named `the-matrix-reloaded` on a Proxmox Server where the storage container is named `local-lvm` but store the created image for future use in you home folder:
 
 ```
@@ -103,6 +113,8 @@ For a running VM named `the-matrix-sql` (with ID: `100`; IP: `192.168.0.152`), t
                       --default-config \
                       -o ~/proxmox-dietpi.tar.gz
 ```
+
+#### Prompt for password
 
 If you want to set a password but be prompted for it, append the `--prompt-password` option that will request your password securely, avoiding the auto-generated password.
 
@@ -124,13 +136,17 @@ After entering your password, `pv2c` will go & modify the VM (if you didn't use 
 
 After a few moments, you'll see that you've got yourself a new container named `the-matrix-reloaded` with the ID `101` awaiting to be started. The password is automatically generated, so you can use the one included.
 
-> \[!TIP]
->
-> If you don't want to keep the `*.targ.gz` file around, you can use the `--cleanup` switch to delete it after use.
->
-> However, if you want to retain the files for later, you can use the `--source-output` argument with a path to save it.
-> Eg. `--save-output ~/dietpi-first-attempt.tar.gz`
+#### Ignore Prep'ing of VM
 
+If you want to avoid [changes to the vm](#dietpi-changes) by the script, use the `--ignore-prep` switch.
+
+```
+./proxmox-vm-to-ct.sh --source 192.168.0.152 \
+                      --target the-matrix-reloaded \
+                      --storage local-lvm \
+                      --default-config \
+                      --ignore-prep
+```
 
 ## Usage
 ```
