@@ -6,25 +6,11 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 ![Updated](https://img.shields.io/github/last-commit/thushan/proxmox-vm-to-ct)
-![Proxmox](https://img.shields.io/badge/-Proxmox-orange)
-![DietPi](https://img.shields.io/badge/-DietPi-C1FF00)
+![Version](https://img.shields.io/badge/Version-v0.9.0-blue)
+![Proxmox](https://img.shields.io/badge/Proxmox-7.x%20%7C%208.x-orange?logo=proxmox)
+![DietPi](https://img.shields.io/badge/DietPi-6.x%20%7C%207.x%20%7C%208.x-C1FF00?logo=dietpi)
 
 </div>
-
-<table>
-  <tr>
-    <th>Script Version</th>
-    <td><a href="https://github.com/thushan/proxmox-vm-to-ct/blob/main/proxmox-vm-to-ct.sh">v0.8.2</a></td>
-  </tr>
-  <tr>
-    <th>Proxmox Versions</th>
-    <td>Proxmox 7.x | Proxmox 8.x</td>
-  </tr>
-  <tr>
-    <th>DietPi Versions</th>
-    <td>DietPi 6.x | 7.x | 8.x</td>
-  </tr>
-</table>
 
 This repository contains scripts and helpers to convert your [Proxmox](https://www.proxmox.com) VM's to containers - with a special emphasis on [DietPi](https://dietpi.com/) VMs, but [the tweaks for DietPi](#dietpi-changes) are ignored on non-DietPi distributions.
 
