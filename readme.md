@@ -152,7 +152,7 @@ If you want to avoid [changes to the vm](#dietpi-changes) by the script, use the
 
 The [default CT configuration](#default-configuration) is not designed for VMs that have a containerd (Docker/Podman) engine installed. If your VM has Docker or Podman installed, converting to a CT will generate errors as described in [ISSUE: Failed to Create CT](https://github.com/thushan/proxmox-vm-to-ct/issues/2#issuecomment-1898335593).
 
-You can create a privilleged container with additional features required (`nesting` & `keyctl`) by using the `--default-config-containerd` (or `--default-config-docker`)
+You can create a privilleged container with additional features required by using the `--default-config-containerd` (or `--default-config-docker`):
 
 ```
 ./proxmox-vm-to-ct.sh --source 192.168.0.152 \
@@ -160,6 +160,8 @@ You can create a privilleged container with additional features required (`nesti
                       --storage local-lvm \
                       --default-config-docker
 ```
+
+See what's included with [default containerd](#default-configuration---containerd--docker--podman) for more information.
 
 ## Usage
 ```
@@ -192,18 +194,67 @@ Options:
 
 ### Default Configuration
 
+Switch: `--default-config`
+
 The default Container settings (stored in `CT_DEFAULT_*` vars) that are activated with the switch `--default-config` are:
 
-* CPU: 2 cores
-* RAM: 2048MB
-* HDD: 20GB
-* NET: `name=eth0,ip=dhcp,ip6=auto,bridge=vmbr0,firewall=1`
-* ARCH: amd64
-* OSTYPE: debian
-* ONBOOT: `false`
-* UNPRIVILEGED: `true`
+<table>
+  <tr>
+    <th align="right">CPU</th>
+    <td>2 Cores</td>
+  </tr>
+  <tr>
+    <th align="right">RAM</th>
+    <td>2048MB</td>
+  </tr>
+  <tr>
+    <th align="right">HDD</th>
+    <td>20GB</td>
+  </tr>
+  <tr>
+    <th align="right">NET</th>
+    <td><code>name=eth0,ip=dhcp,ip6=auto,bridge=vmbr0,firewall=1</code></td>
+  </tr>
+  <tr>
+    <th align="right">ARCH</th>
+    <td>amd64</td>
+  </tr>
+  <tr>
+    <th align="right">OSTYPE</th>
+    <td>debian</td>
+  </tr>
+  <tr>
+    <th align="right">ONBOOT</th>
+    <td><code>false</code></td>
+  </tr>
+  <tr>
+    <th align="right">FEATURES</th>
+    <td><code>nesting</code></td>
+  </tr>
+  <tr>
+    <th align="right">UNPRIVILEGED</th>
+    <td><code>true</code></td>
+  </tr>
+</table>
 
 At this time, you'll have to modify the file to change that configuration - but will be implemented soon via commandline.
+
+### Default Configuration - containerd / Docker / Podman
+
+Switch: `--default-config-containerd`, `--default-config-docker`
+
+For VM's that have a `containerd` instance (or Docker, Podman etc) we need a few more defaults. So in addition to the [default configuration](#default-configuration), this switch enables:
+
+<table>
+  <tr>
+    <th align="right">FEATURES</th>
+    <td><code>nesting</code>, <code>keyctl</code></td>
+  </tr>
+  <tr>
+    <th align="right">UNPRIVILEGED</th>
+    <td><em><code>false</code></em></td>
+  </tr>
+</table>
 
 ### DietPi Changes
 
