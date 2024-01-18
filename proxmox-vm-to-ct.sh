@@ -4,7 +4,7 @@
 # Author: Thushan Fernando <thushan.fernando@gmail.com>
 # http://github.com/thushan/proxmox-vm-to-ct
 
-VERSION=0.8.1
+VERSION=0.9.0
 
 set -Eeuo pipefail
 set -o nounset
@@ -33,6 +33,10 @@ INT_PROMPT_PASS=0
 # invalid templates or not
 CT_SUCCESS=0
 
+# Defaults for CT
+OPT_DEFAULTS_DEFAULT=1
+OPT_DEFAULTS_CONTAINERD=2
+
 CT_DEFAULT_CPU=2
 CT_DEFAULT_RAM=2048
 CT_DEFAULT_HDD=20
@@ -42,6 +46,9 @@ CT_DEFAULT_FEATURES="nesting=1"
 CT_DEFAULT_ONBOOT=0
 CT_DEFAULT_ARCH="amd64"
 CT_DEFAULT_OSTYPE="debian"
+
+CT_DEFAULT_DOCKER_UNPRIVILEGED=0
+CT_DEFAULT_DOCKER_FEATURES="nesting=1,keyctl=1"
 
 # todo: make these configurable from CLI later
 CT_CPU=$CT_DEFAULT_CPU
@@ -233,22 +240,33 @@ function create_container() {
         --storage $PVE_STORAGE \
         --password "$CT_PASSWORD" \
         --unprivileged $CT_UNPRIVILEGED \
-        --onboot $CT_ONBOOT
+        --onboot $CT_ONBOOT    
 }
 
 function map_ct_to_defaults() {
     # TODO: Override defaults with user specified options
-    if [[ "$OPT_DEFAULT_CONFIG" -eq 1 ]]; then
-        CT_CPU=$CT_DEFAULT_CPU
-        CT_RAM=$CT_DEFAULT_RAM
-        CT_HDD=$CT_DEFAULT_HDD
-        CT_UNPRIVILEGED=$CT_DEFAULT_UNPRIVILEGED
-        CT_NETWORKING=$CT_DEFAULT_NETWORKING
-        CT_FEATURES=$CT_DEFAULT_FEATURES
-        CT_ONBOOT=$CT_DEFAULT_ONBOOT
-        CT_ARCH=$CT_DEFAULT_ARCH
-        CT_OSTYPE=$CT_DEFAULT_OSTYPE
+
+    if [[ "$OPT_DEFAULT_CONFIG" -eq 0 ]]; then
+        return
+    fi 
+
+    # Set base defaults
+    CT_CPU=$CT_DEFAULT_CPU
+    CT_RAM=$CT_DEFAULT_RAM
+    CT_HDD=$CT_DEFAULT_HDD
+    CT_UNPRIVILEGED=$CT_DEFAULT_UNPRIVILEGED
+    CT_NETWORKING=$CT_DEFAULT_NETWORKING
+    CT_FEATURES=$CT_DEFAULT_FEATURES
+    CT_ONBOOT=$CT_DEFAULT_ONBOOT
+    CT_ARCH=$CT_DEFAULT_ARCH
+    CT_OSTYPE=$CT_DEFAULT_OSTYPE
+    
+    # 
+    if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_CONTAINERD ]]; then        
+        CT_UNPRIVILEGED=$CT_DEFAULT_DOCKER_UNPRIVILEGED
+        CT_FEATURES=$CT_DEFAULT_DOCKER_FEATURES
     fi
+
 }
 
 function print_opts() {
@@ -463,7 +481,7 @@ function main() {
 }
 
 function usage() {
-    echo "Usage: $0 --storage <name> --target <name> --source <hostname> [options]"
+    echo "Usage: $0 --source <hostname> --target <name> --storage <name> [options]"
     echo "Options:"
     echo "  --storage <name>"
     echo "      Name of the Proxmox Storage container (Eg. local-zfs, local-lvm, etc)"
@@ -477,6 +495,8 @@ function usage() {
     echo "      Cleanup the source compressed image after conversion (the *.tar.gz file)"
     echo "  --default-config"
     echo "      Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)"
+    echo "  --default-config-containerd, --default-config-docker"
+    echo "      Default configuration for a containerd container (2 CPU, 2GB RAM, 20GB Disk, privileged, features: nesting, keyctl)"
     echo "  --ignore-prep"
     echo "      Ignore modifying the VM before snapshotting"
     echo "  --ignore-dietpi"
@@ -513,7 +533,10 @@ while [ "$#" -gt 0 ]; do
         OPT_CLEANUP=1
         ;;
     --default-config)
-        OPT_DEFAULT_CONFIG=1
+        OPT_DEFAULT_CONFIG=$OPT_DEFAULTS_DEFAULT
+        ;;
+    --default-config-containerd | --default-config-docker)
+        OPT_DEFAULT_CONFIG=$OPT_DEFAULTS_CONTAINERD
         ;;
     --ignore-prep)
         OPT_IGNORE_PREP=1

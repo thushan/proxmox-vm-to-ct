@@ -14,7 +14,7 @@
 <table>
   <tr>
     <th>Script Version</th>
-    <td><a href="https://github.com/thushan/proxmox-vm-to-ct/blob/main/proxmox-vm-to-ct.sh">v0.8.1</a></td>
+    <td><a href="https://github.com/thushan/proxmox-vm-to-ct/blob/main/proxmox-vm-to-ct.sh">v0.8.2</a></td>
   </tr>
   <tr>
     <th>Proxmox Versions</th>
@@ -148,9 +148,22 @@ If you want to avoid [changes to the vm](#dietpi-changes) by the script, use the
                       --ignore-prep
 ```
 
+#### Containerd VM to CT
+
+The [default CT configuration](#default-configuration) is not designed for VMs that have a containerd (Docker/Podman) engine installed. If your VM has Docker or Podman installed, converting to a CT will generate errors as described in [ISSUE: Failed to Create CT](https://github.com/thushan/proxmox-vm-to-ct/issues/2#issuecomment-1898335593).
+
+You can create a privilleged container with additional features required (`nesting` & `keyctl`) by using the `--default-config-containerd` (or `--default-config-docker`)
+
+```
+./proxmox-vm-to-ct.sh --source 192.168.0.152 \
+                      --target the-matrix-reloaded \
+                      --storage local-lvm \
+                      --default-config-docker
+```
+
 ## Usage
 ```
-Usage: proxmox-vm-to-ct.sh --storage <name> --target <name> --source <hostname> [options]
+Usage: proxmox-vm-to-ct.sh --source <hostname> --target <name> --storage <name> [options]
 
 Options:
   --storage <name>
@@ -165,6 +178,8 @@ Options:
       Cleanup the source compressed image after conversion (the *.tar.gz file)
   --default-config
       Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)
+  --default-config-docker
+      Default configuration for a docker container (2 CPU, 2GB RAM, 20GB Disk, privileged, features: nesting, keyctl)
   --ignore-prep
       Ignore modifying the VM before snapshotting
   --ignore-dietpi
