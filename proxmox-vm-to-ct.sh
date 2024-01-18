@@ -84,7 +84,7 @@ function banner() {
  ${CWhite}| _ \_ _ ___${CProxmox}__ __${CWhite}_ __  ___${CProxmox}__ __ ${CDietPi}|   \(_)___| |_| _ (_)
  ${CWhite}|  _/ '_/ _ ${CProxmox}\ \ /${CWhite} '  \/ _ ${CProxmox}\ \ / ${CDietPi}| |) | / -_)  _|  _/ |
  ${CWhite}| | |_| \___${CProxmox}/_\_\\${CWhite}_|_|_\___${CProxmox}/_\_\ ${CDietPi}|___/|_\___|\__|_| |_| 
- ${CWhite}|_|${CBlue}github.com/thushan/proxmox-vm-to-ct${ENDMARKER}          ${CYellow}v${VERSION}${ENDMARKER}
+ ${CWhite}|_|      ${CBlue}github.com/thushan/proxmox-vm-to-ct${ENDMARKER}    ${CYellow}v${VERSION}${ENDMARKER}
 
    Your ${CGrey}Virtual Machine${ENDMARKER} to ${CGrey}Container${ENDMARKER} Conversion Script
 
@@ -481,29 +481,30 @@ function main() {
 }
 
 function usage() {
-    echo "Usage: $0 --source <hostname> --target <name> --storage <name> [options]"
+    banner
+    echo "Usage: ${CYellow}$0${ENDMARKER} ${CBlue}--source${ENDMARKER} <hostname> ${CBlue}--target${ENDMARKER} <name> ${CBlue}--storage${ENDMARKER} <name> [options]"
     echo "Options:"
-    echo "  --storage <name>"
+    echo "  ${CCyan}--storage${ENDMARKER} <name>"
     echo "      Name of the Proxmox Storage container (Eg. local-zfs, local-lvm, etc)"
-    echo "  --target <name>"
+    echo "  ${CCyan}--target${ENDMARKER} <name>"
     echo "      Name of the container to create (Eg. postgres-ct)"
-    echo "  --source <hostname>"
+    echo "  ${CCyan}--source${ENDMARKER} <hostname>"
     echo "      Source VM to convert to CT (Eg. postgres-vm.fritz.box or 192.168.0.10)"
-    echo "  --source-output <path>, --output <path>, -o <path>"
+    echo "  ${CCyan}--source-output${ENDMARKER} <path>, ${CCyan}--output${ENDMARKER} <path>, ${CCyan}-o${ENDMARKER} <path>"
     echo "      Location of the source VM output (default: /tmp/proxmox-vm-to-ct/<hostname>.tar.gz)"
-    echo "  --cleanup"
+    echo "  ${CCyan}--cleanup${ENDMARKER}"
     echo "      Cleanup the source compressed image after conversion (the *.tar.gz file)"
-    echo "  --default-config"
+    echo "  ${CCyan}--default-config${ENDMARKER}"
     echo "      Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)"
-    echo "  --default-config-containerd, --default-config-docker"
-    echo "      Default configuration for a containerd container (2 CPU, 2GB RAM, 20GB Disk, privileged, features: nesting, keyctl)"
-    echo "  --ignore-prep"
+    echo "  ${CCyan}--default-config-containerd${ENDMARKER}, ${CCyan}--default-config-docker${ENDMARKER}"
+    echo "      Default configuration for containerd containers (default + privileged, features: nesting, keyctl)"
+    echo "  ${CCyan}--ignore-prep${ENDMARKER}"
     echo "      Ignore modifying the VM before snapshotting"
-    echo "  --ignore-dietpi"
+    echo "  ${CCyan}--ignore-dietpi${ENDMARKER}"
     echo "      Ignore DietPi specific modifications on the VM before snapshotting. (ignored with --ignore-prep)"
-    echo "  --prompt-password"
+    echo "  ${CCyan}--prompt-password${ENDMARKER}"
     echo "      Prompt for a password for the container, temporary one generated & displayed otherwise"
-    echo "  --help"
+    echo "  ${CCyan}--help${ENDMARKER}"
     echo "      Display this help message"
 }
 

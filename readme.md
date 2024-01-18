@@ -179,7 +179,7 @@ Options:
   --default-config
       Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)
   --default-config-containerd, --default-config-docker
-      Default configuration for creating a containerd container (2 CPU, 2GB RAM, 20GB Disk, privileged, features: nesting, keyctl)
+      Default configuration for containerd containers (default + privileged, features: nesting, keyctl)
   --ignore-prep
       Ignore modifying the VM before snapshotting
   --ignore-dietpi
