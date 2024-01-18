@@ -178,8 +178,8 @@ Options:
       Cleanup the source compressed image after conversion (the *.tar.gz file)
   --default-config
       Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)
-  --default-config-docker
-      Default configuration for a docker container (2 CPU, 2GB RAM, 20GB Disk, privileged, features: nesting, keyctl)
+  --default-config-containerd, --default-config-docker
+      Default configuration for creating a containerd container (2 CPU, 2GB RAM, 20GB Disk, privileged, features: nesting, keyctl)
   --ignore-prep
       Ignore modifying the VM before snapshotting
   --ignore-dietpi
