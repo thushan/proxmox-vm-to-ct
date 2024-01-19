@@ -46,7 +46,8 @@ See further [examples](#Examples) below.
 >
 > If you don't want to keep the `*.targ.gz` file around, you can use the `--cleanup` switch to delete it after use.
 >
-> However, if you want to retain the files for later, you can use the `--source-output` argument with a path to save it.
+> However, if you want to retain the files for later, you can use the `--source-output` argument with a path to save it or `--no-cleanup` to keep temporary files.
+> 
 > Eg. `--source-output ~/dietpi-first-attempt.tar.gz`
 
 
