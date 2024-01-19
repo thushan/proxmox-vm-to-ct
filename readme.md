@@ -164,6 +164,8 @@ Options:
       Location of the source VM output (default: /tmp/proxmox-vm-to-ct/<hostname>.tar.gz)
   --cleanup
       Cleanup the source compressed image after conversion (the *.tar.gz file)
+  --no-cleanup
+    Leave any files created for the container alone (opposite to --cleanup)
   --default-config
       Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)
   --default-config-containerd, --default-config-docker

@@ -449,10 +449,10 @@ function ensure_env() {
 function cleanup () {
     # https://www.youtube.com/watch?v=4F4qzPbcFiA
     local c_status="Cleaning up..."
+    local template_size_before=$(du -h "$PVE_SOURCE_OUTPUT" | cut -f1)
+
     msg "$c_status"
     if [[ "$OPT_CLEANUP" -eq 1 || "$CT_SUCCESS" -eq 0 ]] && [[ -f "$PVE_SOURCE_OUTPUT" ]]; then
-        
-        local template_size_before=$(du -h "$PVE_SOURCE_OUTPUT" | cut -f1)
 
         rm -rf "$PVE_SOURCE_OUTPUT"
         
@@ -461,6 +461,8 @@ function cleanup () {
         else
             check_ok "Removed  ${CBlue}$PVE_SOURCE_OUTPUT${ENDMARKER} (-$template_size_before)"
         fi 
+    else
+        check_ok "Leaving  ${CBlue}$PVE_SOURCE_OUTPUT${ENDMARKER} ($template_size_before)"
     fi
     msg_done "$c_status"
 }
@@ -511,6 +513,8 @@ function usage() {
     echo "      Location of the source VM output (default: /tmp/proxmox-vm-to-ct/<hostname>.tar.gz)"
     echo "  ${CCyan}--cleanup${ENDMARKER}"
     echo "      Cleanup the source compressed image after conversion (the *.tar.gz file)"
+    echo "  ${CCyan}--no-cleanup${ENDMARKER}"
+    echo "      Leave any files created for the container alone (opposite to ${CCyan}--cleanup${ENDMARKER})"
     echo "  ${CCyan}--default-config${ENDMARKER}"
     echo "      Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)"
     echo "  ${CCyan}--default-config-containerd${ENDMARKER}, ${CCyan}--default-config-docker${ENDMARKER}"
@@ -549,6 +553,9 @@ while [ "$#" -gt 0 ]; do
         ;;
     --cleanup)
         OPT_CLEANUP=1
+        ;;
+    --no-cleanup)
+        OPT_CLEANUP=0
         ;;
     --default-config)
         OPT_DEFAULT_CONFIG=$OPT_DEFAULTS_DEFAULT
