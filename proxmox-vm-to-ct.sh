@@ -166,6 +166,15 @@ function check_proxmox_storage() {
         fatal "Please specify a valid storage name"
     fi
 }
+
+function check_container_settings() {
+    if [[ "$CT_UNPRIVILEGED" -eq 1 ]]; then
+        check_info "Creating ${CGreen}UNPRIVILLEGED${ENDMARKER} container."
+    elif [[ $CT_UNPRIVILEGED -eq 0 ]]; then
+        check_info "Creating ${CRed}PRIVILLEGED${ENDMARKER} container."
+    fi
+}
+
 function check_proxmox_container() {
     local containers=$(pct list | awk 'NR>1 {print $NF}')    
     if [[ ${containers[*]} =~ $PVE_TARGET ]]; then
@@ -272,9 +281,16 @@ function map_ct_to_defaults() {
 function print_opts() {
     local c_status="Gathering options..."    
     local CT_SECURE_PASSWORD="**********"
+    local CT_DEFAULT_CONFIG_TYPE=""
     
     if [[ "$OPT_PROMPT_PASS" -eq 0 ]] && [[ "$INT_PROMPT_PASS" -eq 0 ]]; then
         CT_SECURE_PASSWORD=$CT_PASSWORD
+    fi
+
+    if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_CONTAINERD ]]; then
+        CT_DEFAULT_CONFIG_TYPE="containerd / docker"
+    elif [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_DEFAULT ]]; then
+        CT_DEFAULT_CONFIG_TYPE="default"
     fi
 
     msg "$c_status"
@@ -284,7 +300,7 @@ function print_opts() {
     msg3 "- Cleanup:        ${CCyan}$OPT_CLEANUP${ENDMARKER}"
     msg3 "Target CT:        ${CBlue}$PVE_TARGET${ENDMARKER}"
     msg3 "- Password:       ${CRed}$CT_SECURE_PASSWORD${ENDMARKER}"
-    msg3 "Default Config:   ${CBlue}$OPT_DEFAULT_CONFIG${ENDMARKER}"
+    msg3 "Default Config:   ${CBlue}$CT_DEFAULT_CONFIG_TYPE${ENDMARKER}"
     msg3 "- ID:             ${CCyan}$CT_NEXT_ID${ENDMARKER}"
     msg3 "- ARCH:           ${CCyan}$CT_ARCH${ENDMARKER}"
     msg3 "- CPU:            ${CCyan}$CT_CPU${ENDMARKER}"
@@ -307,6 +323,7 @@ function validate_env() {
     check_proxmox_version
     check_proxmox_storage
     check_proxmox_container
+    check_container_settings
     msg_done "$c_status"
 }
 
