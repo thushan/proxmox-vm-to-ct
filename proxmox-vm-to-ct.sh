@@ -32,6 +32,7 @@ INT_PROMPT_PASS=0
 # Used to determine whether to cleanup
 # invalid templates or not
 CT_SUCCESS=0
+CT_SCREENP=0
 
 # Defaults for CT
 OPT_DEFAULTS_DEFAULT=1
@@ -100,7 +101,7 @@ function banner_ssh() {
  ${CWhite}| _ \_ _ ___${CProxmox}__ __${CWhite}_ __  ___${CProxmox}__ __ ${CDietPi}|   \(_)___| |_| _ (_)
  ${CWhite}|  _/ '_/ _ ${CProxmox}\ \ /${CWhite} '  \/ _ ${CProxmox}\ \ / ${CDietPi}| |) | / -_)  _|  _/ |
  ${CWhite}| | |_| \___${CProxmox}/_\_\\${CWhite}_|_|_\___${CProxmox}/_\_\ ${CDietPi}|___/|_\___|\__|_| |_| 
- ${CWhite}|_|      ${CGreen}SSH://${CPurple}root@${COrange}$PVE_SOURCE${ENDMARKER}
+ ${CWhite}|_|      ${CYellow}ssh://${CDGreen}root${CYellow}@${CBlue}$PVE_SOURCE${ENDMARKER}
 
 "
     printf "$BANNER"
@@ -433,6 +434,7 @@ function create_vm_snapshot() {
     msg "$c_status"
 
     tput smcup
+    CT_SCREENP=1
     tput csr 5 $(($LINES - 2))
     tput clear
     tput cup 0 0
@@ -443,6 +445,7 @@ function create_vm_snapshot() {
         >"$PVE_SOURCE_OUTPUT"
 
     tput rmcup
+    CT_SCREENP=0
 
     msg_done "$c_status"
 }
@@ -473,6 +476,11 @@ function cleanup () {
     local c_status="Cleaning up..."
     local template_size_before=$(du -h "$PVE_SOURCE_OUTPUT" | cut -f1)
 
+    # Reset screen
+    if [[ "$CT_SCREENP" -eq 1 ]]; then
+        tput rmcup
+    fi 
+    
     msg "$c_status"
     if [[ "$OPT_CLEANUP" -eq 1 || "$CT_SUCCESS" -eq 0 ]] && [[ -f "$PVE_SOURCE_OUTPUT" ]]; then
 
