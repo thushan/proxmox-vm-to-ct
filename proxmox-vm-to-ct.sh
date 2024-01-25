@@ -35,6 +35,7 @@ CT_SUCCESS=0
 CT_SCREENP=0
 
 # Defaults for CT
+OPT_DEFAULTS_NONE=0
 OPT_DEFAULTS_DEFAULT=1
 OPT_DEFAULTS_CONTAINERD=2
 
@@ -272,7 +273,7 @@ function create_container() {
 function map_ct_to_defaults() {
     # TODO: Override defaults with user specified options
 
-    if [[ "$OPT_DEFAULT_CONFIG" -eq 0 ]]; then
+    if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_NONE ]]; then
         return
     fi 
 
@@ -561,8 +562,6 @@ function usage() {
     echo "      Location of the source VM output (default: /tmp/proxmox-vm-to-ct/<hostname>.tar.gz)"
     echo "  ${CCyan}--cleanup${ENDMARKER}"
     echo "      Cleanup the source compressed image after conversion (the *.tar.gz file)"
-    echo "  ${CCyan}--no-cleanup${ENDMARKER}"
-    echo "      Leave any files created for the container alone (opposite to ${CCyan}--cleanup${ENDMARKER})"
     echo "  ${CCyan}--default-config${ENDMARKER}"
     echo "      Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)"
     echo "  ${CCyan}--default-config-containerd${ENDMARKER}, ${CCyan}--default-config-docker${ENDMARKER}"
@@ -601,31 +600,21 @@ while [ "$#" -gt 0 ]; do
         ;;
     --cleanup)
         OPT_CLEANUP=1
-        shift
-        ;;
-    --no-cleanup)
-        OPT_CLEANUP=0
-        shift
         ;;
     --default-config)
         OPT_DEFAULT_CONFIG=$OPT_DEFAULTS_DEFAULT
-        shift
         ;;
     --default-config-containerd | --default-config-docker)
         OPT_DEFAULT_CONFIG=$OPT_DEFAULTS_CONTAINERD
-        shift
         ;;
     --ignore-prep)
         OPT_IGNORE_PREP=1
-        shift
         ;;
     --ignore-dietpi)
         OPT_IGNORE_DIETPI=1
-        shift
         ;;
     --prompt-password)
         OPT_PROMPT_PASS=1
-        shift
         ;;
     --)
         break

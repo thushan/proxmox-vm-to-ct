@@ -6,9 +6,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 ![Updated](https://img.shields.io/github/last-commit/thushan/proxmox-vm-to-ct)
-![Version](https://img.shields.io/badge/Version-v0.9.0-blue)
+![Version](https://img.shields.io/badge/Version-v0.9.2-blue)
 ![Proxmox](https://img.shields.io/badge/Proxmox-7.x%20%7C%208.x-orange?logo=proxmox)
-![DietPi](https://img.shields.io/badge/DietPi-6.x%20%7C%207.x%20%7C%208.x-C1FF00?logo=dietpi)
+![DietPi](https://img.shields.io/badge/DietPi-6.x%20%7C%207.x%20%7C%208.x%20%7C%209.x-C1FF00?logo=dietpi)
 
 </div>
 
@@ -40,13 +40,22 @@ Once downloaded, to create an container for the vm '`the-matrix`' named '`matrix
                       --default-config
 ```
 
+If your VM has docker, podman or containerd installed, use the `--default-config-containerd` that sets up [default containerd configuration](#default-configuration---containerd--docker--podman):
+
+```
+./proxmox-vm-to-ct.sh --source the-matrix \
+                      --target matrix-reloaded \
+                      --storage local-zfs \
+                      --default-config-containerd
+```
+
 See further [examples](#Examples) below.
 
 > \[!TIP]
 >
 > If you don't want to keep the `*.targ.gz` file around, you can use the `--cleanup` switch to delete it after use.
 >
-> However, if you want to retain the files for later, you can use the `--source-output` argument with a path to save it or `--no-cleanup` to keep temporary files.
+> However, if you want to retain the files for later, you can use the `--source-output` argument with a path to save it elsewhere.
 > 
 > Eg. `--source-output ~/dietpi-first-attempt.tar.gz`
 
@@ -165,8 +174,6 @@ Options:
       Location of the source VM output (default: /tmp/proxmox-vm-to-ct/<hostname>.tar.gz)
   --cleanup
       Cleanup the source compressed image after conversion (the *.tar.gz file)
-  --no-cleanup
-    Leave any files created for the container alone (opposite to --cleanup)
   --default-config
       Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)
   --default-config-containerd, --default-config-docker
