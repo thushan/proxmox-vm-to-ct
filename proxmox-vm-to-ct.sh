@@ -4,7 +4,7 @@
 # Author: Thushan Fernando <thushan.fernando@gmail.com>
 # http://github.com/thushan/proxmox-vm-to-ct
 
-VERSION=0.8.1
+VERSION=0.9.0
 
 set -Eeuo pipefail
 set -o nounset
@@ -33,6 +33,10 @@ INT_PROMPT_PASS=0
 # invalid templates or not
 CT_SUCCESS=0
 
+# Defaults for CT
+OPT_DEFAULTS_DEFAULT=1
+OPT_DEFAULTS_CONTAINERD=2
+
 CT_DEFAULT_CPU=2
 CT_DEFAULT_RAM=2048
 CT_DEFAULT_HDD=20
@@ -42,6 +46,9 @@ CT_DEFAULT_FEATURES="nesting=1"
 CT_DEFAULT_ONBOOT=0
 CT_DEFAULT_ARCH="amd64"
 CT_DEFAULT_OSTYPE="debian"
+
+CT_DEFAULT_DOCKER_UNPRIVILEGED=0
+CT_DEFAULT_DOCKER_FEATURES="nesting=1,keyctl=1"
 
 # todo: make these configurable from CLI later
 CT_CPU=$CT_DEFAULT_CPU
@@ -77,7 +84,7 @@ function banner() {
  ${CWhite}| _ \_ _ ___${CProxmox}__ __${CWhite}_ __  ___${CProxmox}__ __ ${CDietPi}|   \(_)___| |_| _ (_)
  ${CWhite}|  _/ '_/ _ ${CProxmox}\ \ /${CWhite} '  \/ _ ${CProxmox}\ \ / ${CDietPi}| |) | / -_)  _|  _/ |
  ${CWhite}| | |_| \___${CProxmox}/_\_\\${CWhite}_|_|_\___${CProxmox}/_\_\ ${CDietPi}|___/|_\___|\__|_| |_| 
- ${CWhite}|_|${CBlue}github.com/thushan/proxmox-vm-to-ct${ENDMARKER}          ${CYellow}v${VERSION}${ENDMARKER}
+ ${CWhite}|_|      ${CBlue}github.com/thushan/proxmox-vm-to-ct${ENDMARKER}    ${CYellow}v${VERSION}${ENDMARKER}
 
    Your ${CGrey}Virtual Machine${ENDMARKER} to ${CGrey}Container${ENDMARKER} Conversion Script
 
@@ -159,6 +166,15 @@ function check_proxmox_storage() {
         fatal "Please specify a valid storage name"
     fi
 }
+
+function check_container_settings() {
+    if [[ "$CT_UNPRIVILEGED" -eq 1 ]]; then
+        check_info "Creating ${CGreen}UNPRIVILLEGED${ENDMARKER} container."
+    elif [[ $CT_UNPRIVILEGED -eq 0 ]]; then
+        check_info "Creating ${CRed}PRIVILLEGED${ENDMARKER} container."
+    fi
+}
+
 function check_proxmox_container() {
     local containers=$(pct list | awk 'NR>1 {print $NF}')    
     if [[ ${containers[*]} =~ $PVE_TARGET ]]; then
@@ -233,30 +249,48 @@ function create_container() {
         --storage $PVE_STORAGE \
         --password "$CT_PASSWORD" \
         --unprivileged $CT_UNPRIVILEGED \
-        --onboot $CT_ONBOOT
+        --onboot $CT_ONBOOT    
 }
 
 function map_ct_to_defaults() {
     # TODO: Override defaults with user specified options
-    if [[ "$OPT_DEFAULT_CONFIG" -eq 1 ]]; then
-        CT_CPU=$CT_DEFAULT_CPU
-        CT_RAM=$CT_DEFAULT_RAM
-        CT_HDD=$CT_DEFAULT_HDD
-        CT_UNPRIVILEGED=$CT_DEFAULT_UNPRIVILEGED
-        CT_NETWORKING=$CT_DEFAULT_NETWORKING
-        CT_FEATURES=$CT_DEFAULT_FEATURES
-        CT_ONBOOT=$CT_DEFAULT_ONBOOT
-        CT_ARCH=$CT_DEFAULT_ARCH
-        CT_OSTYPE=$CT_DEFAULT_OSTYPE
+
+    if [[ "$OPT_DEFAULT_CONFIG" -eq 0 ]]; then
+        return
+    fi 
+
+    # Set base defaults
+    CT_CPU=$CT_DEFAULT_CPU
+    CT_RAM=$CT_DEFAULT_RAM
+    CT_HDD=$CT_DEFAULT_HDD
+    CT_UNPRIVILEGED=$CT_DEFAULT_UNPRIVILEGED
+    CT_NETWORKING=$CT_DEFAULT_NETWORKING
+    CT_FEATURES=$CT_DEFAULT_FEATURES
+    CT_ONBOOT=$CT_DEFAULT_ONBOOT
+    CT_ARCH=$CT_DEFAULT_ARCH
+    CT_OSTYPE=$CT_DEFAULT_OSTYPE
+    
+    # 
+    if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_CONTAINERD ]]; then        
+        CT_UNPRIVILEGED=$CT_DEFAULT_DOCKER_UNPRIVILEGED
+        CT_FEATURES=$CT_DEFAULT_DOCKER_FEATURES
     fi
+
 }
 
 function print_opts() {
     local c_status="Gathering options..."    
     local CT_SECURE_PASSWORD="**********"
+    local CT_DEFAULT_CONFIG_TYPE=""
     
     if [[ "$OPT_PROMPT_PASS" -eq 0 ]] && [[ "$INT_PROMPT_PASS" -eq 0 ]]; then
         CT_SECURE_PASSWORD=$CT_PASSWORD
+    fi
+
+    if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_CONTAINERD ]]; then
+        CT_DEFAULT_CONFIG_TYPE="containerd / docker"
+    elif [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_DEFAULT ]]; then
+        CT_DEFAULT_CONFIG_TYPE="default"
     fi
 
     msg "$c_status"
@@ -266,7 +300,7 @@ function print_opts() {
     msg3 "- Cleanup:        ${CCyan}$OPT_CLEANUP${ENDMARKER}"
     msg3 "Target CT:        ${CBlue}$PVE_TARGET${ENDMARKER}"
     msg3 "- Password:       ${CRed}$CT_SECURE_PASSWORD${ENDMARKER}"
-    msg3 "Default Config:   ${CBlue}$OPT_DEFAULT_CONFIG${ENDMARKER}"
+    msg3 "Default Config:   ${CBlue}$CT_DEFAULT_CONFIG_TYPE${ENDMARKER}"
     msg3 "- ID:             ${CCyan}$CT_NEXT_ID${ENDMARKER}"
     msg3 "- ARCH:           ${CCyan}$CT_ARCH${ENDMARKER}"
     msg3 "- CPU:            ${CCyan}$CT_CPU${ENDMARKER}"
@@ -289,6 +323,7 @@ function validate_env() {
     check_proxmox_version
     check_proxmox_storage
     check_proxmox_container
+    check_container_settings
     msg_done "$c_status"
 }
 
@@ -414,10 +449,10 @@ function ensure_env() {
 function cleanup () {
     # https://www.youtube.com/watch?v=4F4qzPbcFiA
     local c_status="Cleaning up..."
+    local template_size_before=$(du -h "$PVE_SOURCE_OUTPUT" | cut -f1)
+
     msg "$c_status"
     if [[ "$OPT_CLEANUP" -eq 1 || "$CT_SUCCESS" -eq 0 ]] && [[ -f "$PVE_SOURCE_OUTPUT" ]]; then
-        
-        local template_size_before=$(du -h "$PVE_SOURCE_OUTPUT" | cut -f1)
 
         rm -rf "$PVE_SOURCE_OUTPUT"
         
@@ -426,6 +461,8 @@ function cleanup () {
         else
             check_ok "Removed  ${CBlue}$PVE_SOURCE_OUTPUT${ENDMARKER} (-$template_size_before)"
         fi 
+    else
+        check_ok "Leaving  ${CBlue}$PVE_SOURCE_OUTPUT${ENDMARKER} ($template_size_before)"
     fi
     msg_done "$c_status"
 }
@@ -463,27 +500,32 @@ function main() {
 }
 
 function usage() {
-    echo "Usage: $0 --storage <name> --target <name> --source <hostname> [options]"
+    banner
+    echo "Usage: ${CYellow}$0${ENDMARKER} ${CBlue}--source${ENDMARKER} <hostname> ${CBlue}--target${ENDMARKER} <name> ${CBlue}--storage${ENDMARKER} <name> [options]"
     echo "Options:"
-    echo "  --storage <name>"
+    echo "  ${CCyan}--storage${ENDMARKER} <name>"
     echo "      Name of the Proxmox Storage container (Eg. local-zfs, local-lvm, etc)"
-    echo "  --target <name>"
+    echo "  ${CCyan}--target${ENDMARKER} <name>"
     echo "      Name of the container to create (Eg. postgres-ct)"
-    echo "  --source <hostname>"
+    echo "  ${CCyan}--source${ENDMARKER} <hostname>"
     echo "      Source VM to convert to CT (Eg. postgres-vm.fritz.box or 192.168.0.10)"
-    echo "  --source-output <path>, --output <path>, -o <path>"
+    echo "  ${CCyan}--source-output${ENDMARKER} <path>, ${CCyan}--output${ENDMARKER} <path>, ${CCyan}-o${ENDMARKER} <path>"
     echo "      Location of the source VM output (default: /tmp/proxmox-vm-to-ct/<hostname>.tar.gz)"
-    echo "  --cleanup"
+    echo "  ${CCyan}--cleanup${ENDMARKER}"
     echo "      Cleanup the source compressed image after conversion (the *.tar.gz file)"
-    echo "  --default-config"
+    echo "  ${CCyan}--no-cleanup${ENDMARKER}"
+    echo "      Leave any files created for the container alone (opposite to ${CCyan}--cleanup${ENDMARKER})"
+    echo "  ${CCyan}--default-config${ENDMARKER}"
     echo "      Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)"
-    echo "  --ignore-prep"
+    echo "  ${CCyan}--default-config-containerd${ENDMARKER}, ${CCyan}--default-config-docker${ENDMARKER}"
+    echo "      Default configuration for containerd containers (default + privileged, features: nesting, keyctl)"
+    echo "  ${CCyan}--ignore-prep${ENDMARKER}"
     echo "      Ignore modifying the VM before snapshotting"
-    echo "  --ignore-dietpi"
+    echo "  ${CCyan}--ignore-dietpi${ENDMARKER}"
     echo "      Ignore DietPi specific modifications on the VM before snapshotting. (ignored with --ignore-prep)"
-    echo "  --prompt-password"
+    echo "  ${CCyan}--prompt-password${ENDMARKER}"
     echo "      Prompt for a password for the container, temporary one generated & displayed otherwise"
-    echo "  --help"
+    echo "  ${CCyan}--help${ENDMARKER}"
     echo "      Display this help message"
 }
 
@@ -512,8 +554,14 @@ while [ "$#" -gt 0 ]; do
     --cleanup)
         OPT_CLEANUP=1
         ;;
+    --no-cleanup)
+        OPT_CLEANUP=0
+        ;;
     --default-config)
-        OPT_DEFAULT_CONFIG=1
+        OPT_DEFAULT_CONFIG=$OPT_DEFAULTS_DEFAULT
+        ;;
+    --default-config-containerd | --default-config-docker)
+        OPT_DEFAULT_CONFIG=$OPT_DEFAULTS_CONTAINERD
         ;;
     --ignore-prep)
         OPT_IGNORE_PREP=1
