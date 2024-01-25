@@ -447,6 +447,7 @@ function create_vm_snapshot() {
         >"$PVE_SOURCE_OUTPUT"
 
     tput rmcup
+    tput csr 0 $(($LINES - 1))
     CT_SCREENP=0
 
     msg_done "$c_status"
