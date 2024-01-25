@@ -84,26 +84,28 @@ LINES=$(tput lines)
 COLUMNS=$(tput cols)
 
 function banner() {
-    BANNER=" ${CWhite} ___             ${CWhite}               ${CDietPi} ___  _     _   ___ _ 
- ${CWhite}| _ \_ _ ___${CProxmox}__ __${CWhite}_ __  ___${CProxmox}__ __ ${CDietPi}|   \(_)___| |_| _ (_)
- ${CWhite}|  _/ '_/ _ ${CProxmox}\ \ /${CWhite} '  \/ _ ${CProxmox}\ \ / ${CDietPi}| |) | / -_)  _|  _/ |
- ${CWhite}| | |_| \___${CProxmox}/_\_\\${CWhite}_|_|_\___${CProxmox}/_\_\ ${CDietPi}|___/|_\___|\__|_| |_| 
- ${CWhite}|_|      ${CBlue}github.com/thushan/proxmox-vm-to-ct${ENDMARKER}    ${CYellow}v${VERSION}${ENDMARKER}
+    local STYLE=${1:-0}
 
+    local SUB_HEADING=''
+    local FOOTER=''
+
+    if [[ "$STYLE" -eq 0 ]]; then
+        SUB_HEADING="      ${CBlue}github.com/thushan/proxmox-vm-to-ct${ENDMARKER}    ${CYellow}v${VERSION}${ENDMARKER}"
+        FOOTER="
    Your ${CGrey}Virtual Machine${ENDMARKER} to ${CGrey}Container${ENDMARKER} Conversion Script
 
 "
-    printf "$BANNER"
-}
+    elif [[ "$STYLE" -eq 1 ]]; then
+        SUB_HEADING="      ${CYellow}ssh://${CDGreen}root${CYellow}@${CBlue}$PVE_SOURCE${ENDMARKER}"
+        FOOTER=""
+    fi
 
-function banner_ssh() {
     BANNER=" ${CWhite} ___             ${CWhite}               ${CDietPi} ___  _     _   ___ _ 
  ${CWhite}| _ \_ _ ___${CProxmox}__ __${CWhite}_ __  ___${CProxmox}__ __ ${CDietPi}|   \(_)___| |_| _ (_)
  ${CWhite}|  _/ '_/ _ ${CProxmox}\ \ /${CWhite} '  \/ _ ${CProxmox}\ \ / ${CDietPi}| |) | / -_)  _|  _/ |
  ${CWhite}| | |_| \___${CProxmox}/_\_\\${CWhite}_|_|_\___${CProxmox}/_\_\ ${CDietPi}|___/|_\___|\__|_| |_| 
- ${CWhite}|_|      ${CYellow}ssh://${CDGreen}root${CYellow}@${CBlue}$PVE_SOURCE${ENDMARKER}
-
-"
+ ${CWhite}|_|$SUB_HEADING
+$FOOTER"
     printf "$BANNER"
 }
 
@@ -438,7 +440,7 @@ function create_vm_snapshot() {
     tput csr 5 $(($LINES - 2))
     tput clear
     tput cup 0 0
-    banner_ssh
+    banner 1
 
     ssh "root@$PVE_SOURCE" \
         "$(typeset -f vm_ct_prep); $(typeset -f vm_ct_prep_dietpi); $(typeset -f vm_fs_snapshot); $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); vm_ct_prep; vm_fs_snapshot" \
@@ -619,6 +621,6 @@ done
 
 check_args
 
-banner
+banner 0
 check_pve
 main "$@"
