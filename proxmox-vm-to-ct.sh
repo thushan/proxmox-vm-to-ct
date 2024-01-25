@@ -478,9 +478,11 @@ function cleanup () {
     local c_status="Cleaning up..."
     local template_size_before=$(du -h "$PVE_SOURCE_OUTPUT" | cut -f1)
 
-    # Reset screen
+    # Reset screen & cursor position
     if [[ "$CT_SCREENP" -eq 1 ]]; then
-        tput rmcup
+        tput rmcup        
+        clear
+        tput csr 0 $(($LINES - 1))
     fi 
     
     msg "$c_status"
