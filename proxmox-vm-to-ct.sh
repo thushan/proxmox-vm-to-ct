@@ -4,7 +4,7 @@
 # Author: Thushan Fernando <thushan.fernando@gmail.com>
 # http://github.com/thushan/proxmox-vm-to-ct
 
-VERSION=0.9.0
+VERSION=0.9.2
 
 set -Eeuo pipefail
 set -o nounset
@@ -32,8 +32,10 @@ INT_PROMPT_PASS=0
 # Used to determine whether to cleanup
 # invalid templates or not
 CT_SUCCESS=0
+CT_SCREENP=0
 
 # Defaults for CT
+OPT_DEFAULTS_NONE=0
 OPT_DEFAULTS_DEFAULT=1
 OPT_DEFAULTS_CONTAINERD=2
 
@@ -79,16 +81,32 @@ BOLD=$(tput smso)
 UNBOLD=$(tput rmso)
 ENDMARKER=$(tput sgr0)
 
+LINES=$(tput lines)
+COLUMNS=$(tput cols)
+
 function banner() {
+    local STYLE=${1:-0}
+
+    local SUB_HEADING=''
+    local FOOTER=''
+
+    if [[ "$STYLE" -eq 0 ]]; then
+        SUB_HEADING="%-6s${CBlue}github.com/thushan/proxmox-vm-to-ct${ENDMARKER}%-4s${CYellow}v${VERSION}${ENDMARKER}"
+        FOOTER="
+   Your ${CGrey}Virtual Machine${ENDMARKER} to ${CGrey}Container${ENDMARKER} Conversion Script
+
+"
+    elif [[ "$STYLE" -eq 1 ]]; then
+        SUB_HEADING=$(printf "%-6s%-50s%s" "" "${CGreen}> ${CBlue}$PVE_SOURCE" "${CYellow}| SSH${ENDMARKER}")
+        FOOTER=""
+    fi
+
     BANNER=" ${CWhite} ___             ${CWhite}               ${CDietPi} ___  _     _   ___ _ 
  ${CWhite}| _ \_ _ ___${CProxmox}__ __${CWhite}_ __  ___${CProxmox}__ __ ${CDietPi}|   \(_)___| |_| _ (_)
  ${CWhite}|  _/ '_/ _ ${CProxmox}\ \ /${CWhite} '  \/ _ ${CProxmox}\ \ / ${CDietPi}| |) | / -_)  _|  _/ |
  ${CWhite}| | |_| \___${CProxmox}/_\_\\${CWhite}_|_|_\___${CProxmox}/_\_\ ${CDietPi}|___/|_\___|\__|_| |_| 
- ${CWhite}|_|      ${CBlue}github.com/thushan/proxmox-vm-to-ct${ENDMARKER}    ${CYellow}v${VERSION}${ENDMARKER}
-
-   Your ${CGrey}Virtual Machine${ENDMARKER} to ${CGrey}Container${ENDMARKER} Conversion Script
-
-"
+ ${CWhite}|_|$SUB_HEADING
+$FOOTER"
     printf "$BANNER"
 }
 
@@ -255,7 +273,7 @@ function create_container() {
 function map_ct_to_defaults() {
     # TODO: Override defaults with user specified options
 
-    if [[ "$OPT_DEFAULT_CONFIG" -eq 0 ]]; then
+    if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_NONE ]]; then
         return
     fi 
 
@@ -418,11 +436,31 @@ function create_vm_snapshot() {
     
     msg "$c_status"
 
+    cursor_save
+    CT_SCREENP=1
+    
+    tput clear
+    tput cup 0 0
+    banner 1
+
     ssh "root@$PVE_SOURCE" \
         "$(typeset -f vm_ct_prep); $(typeset -f vm_ct_prep_dietpi); $(typeset -f vm_fs_snapshot); $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); vm_ct_prep; vm_fs_snapshot" \
         >"$PVE_SOURCE_OUTPUT"
 
+    cursor_restore
+    CT_SCREENP=0
+
     msg_done "$c_status"
+}
+function cursor_save() {
+    tput smcup
+    tput sc
+    tput csr 5 $(($LINES - 2))
+}
+function cursor_restore() {
+    tput rmcup
+    tput csr 0 $(($LINES - 1))
+    tput rc
 }
 function prompt_password() {    
     
@@ -449,18 +487,29 @@ function ensure_env() {
 function cleanup () {
     # https://www.youtube.com/watch?v=4F4qzPbcFiA
     local c_status="Cleaning up..."
-    local template_size_before=$(du -h "$PVE_SOURCE_OUTPUT" | cut -f1)
+    local template_size_before=0
 
+    if [[ -f "$PVE_SOURCE_OUTPUT" ]]; then
+        template_size_before=$(du -h "$PVE_SOURCE_OUTPUT" | cut -f1)
+    fi 
+
+    # Reset screen & cursor position
+    if [[ "$CT_SCREENP" -eq 1 ]]; then
+        cursor_restore
+    fi 
+    
     msg "$c_status"
-    if [[ "$OPT_CLEANUP" -eq 1 || "$CT_SUCCESS" -eq 0 ]] && [[ -f "$PVE_SOURCE_OUTPUT" ]]; then
+    if [[ "$OPT_CLEANUP" -eq 1 || "$CT_SUCCESS" -eq 0 ]]; then
 
-        rm -rf "$PVE_SOURCE_OUTPUT"
+        if [[ -f "$PVE_SOURCE_OUTPUT" ]]; then 
+            rm -rf "$PVE_SOURCE_OUTPUT"
         
-        if [[ $? -ne 0 ]]; then 
-            check_error "Failed to cleanup ${CBlue}$PVE_SOURCE_OUTPUT${ENDMARKER} :()"
-        else
-            check_ok "Removed  ${CBlue}$PVE_SOURCE_OUTPUT${ENDMARKER} (-$template_size_before)"
-        fi 
+            if [[ $? -ne 0 ]]; then 
+                check_error "Failed to cleanup ${CBlue}$PVE_SOURCE_OUTPUT${ENDMARKER} :()"
+            else
+                check_ok "Removed  ${CBlue}$PVE_SOURCE_OUTPUT${ENDMARKER} (-$template_size_before)"
+            fi 
+        fi
     else
         check_ok "Leaving  ${CBlue}$PVE_SOURCE_OUTPUT${ENDMARKER} ($template_size_before)"
     fi
@@ -479,9 +528,9 @@ function main() {
     fi
 
     if [[ "$OPT_PROMPT_PASS" -eq 1 ]]; then
-       prompt_password
+        prompt_password
     else
-       CT_PASSWORD=$TEMP_PASS
+        CT_PASSWORD=$TEMP_PASS
     fi
 
     # Get the list of storage containers
@@ -500,7 +549,7 @@ function main() {
 }
 
 function usage() {
-    banner
+    banner 0
     echo "Usage: ${CYellow}$0${ENDMARKER} ${CBlue}--source${ENDMARKER} <hostname> ${CBlue}--target${ENDMARKER} <name> ${CBlue}--storage${ENDMARKER} <name> [options]"
     echo "Options:"
     echo "  ${CCyan}--storage${ENDMARKER} <name>"
@@ -513,8 +562,6 @@ function usage() {
     echo "      Location of the source VM output (default: /tmp/proxmox-vm-to-ct/<hostname>.tar.gz)"
     echo "  ${CCyan}--cleanup${ENDMARKER}"
     echo "      Cleanup the source compressed image after conversion (the *.tar.gz file)"
-    echo "  ${CCyan}--no-cleanup${ENDMARKER}"
-    echo "      Leave any files created for the container alone (opposite to ${CCyan}--cleanup${ENDMARKER})"
     echo "  ${CCyan}--default-config${ENDMARKER}"
     echo "      Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)"
     echo "  ${CCyan}--default-config-containerd${ENDMARKER}, ${CCyan}--default-config-docker${ENDMARKER}"
@@ -554,9 +601,6 @@ while [ "$#" -gt 0 ]; do
     --cleanup)
         OPT_CLEANUP=1
         ;;
-    --no-cleanup)
-        OPT_CLEANUP=0
-        ;;
     --default-config)
         OPT_DEFAULT_CONFIG=$OPT_DEFAULTS_DEFAULT
         ;;
@@ -565,15 +609,12 @@ while [ "$#" -gt 0 ]; do
         ;;
     --ignore-prep)
         OPT_IGNORE_PREP=1
-        shift
         ;;
     --ignore-dietpi)
         OPT_IGNORE_DIETPI=1
-        shift
         ;;
     --prompt-password)
         OPT_PROMPT_PASS=1
-        shift
         ;;
     --)
         break
@@ -589,6 +630,6 @@ done
 
 check_args
 
-banner
+banner 0
 check_pve
 main "$@"
