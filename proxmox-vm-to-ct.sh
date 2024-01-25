@@ -596,15 +596,19 @@ while [ "$#" -gt 0 ]; do
         ;;
     --cleanup)
         OPT_CLEANUP=1
+        shift
         ;;
     --no-cleanup)
         OPT_CLEANUP=0
+        shift
         ;;
     --default-config)
         OPT_DEFAULT_CONFIG=$OPT_DEFAULTS_DEFAULT
+        shift
         ;;
     --default-config-containerd | --default-config-docker)
         OPT_DEFAULT_CONFIG=$OPT_DEFAULTS_CONTAINERD
+        shift
         ;;
     --ignore-prep)
         OPT_IGNORE_PREP=1
