@@ -4,7 +4,7 @@
 # Author: Thushan Fernando <thushan.fernando@gmail.com>
 # http://github.com/thushan/proxmox-vm-to-ct
 
-VERSION=0.9.0
+VERSION=0.9.2
 
 set -Eeuo pipefail
 set -o nounset
@@ -90,13 +90,13 @@ function banner() {
     local FOOTER=''
 
     if [[ "$STYLE" -eq 0 ]]; then
-        SUB_HEADING="      ${CBlue}github.com/thushan/proxmox-vm-to-ct${ENDMARKER}    ${CYellow}v${VERSION}${ENDMARKER}"
+        SUB_HEADING="%-6s${CBlue}github.com/thushan/proxmox-vm-to-ct${ENDMARKER}%-4s${CYellow}v${VERSION}${ENDMARKER}"
         FOOTER="
    Your ${CGrey}Virtual Machine${ENDMARKER} to ${CGrey}Container${ENDMARKER} Conversion Script
 
 "
     elif [[ "$STYLE" -eq 1 ]]; then
-        SUB_HEADING="      ${CYellow}ssh://${CDGreen}root${CYellow}@${CBlue}$PVE_SOURCE${ENDMARKER}"
+        SUB_HEADING=$(printf "%-6s%-50s%s" "" "${CGreen}> ${CBlue}$PVE_SOURCE" "${CYellow}| SSH${ENDMARKER}")
         FOOTER=""
     fi
 
@@ -477,7 +477,11 @@ function ensure_env() {
 function cleanup () {
     # https://www.youtube.com/watch?v=4F4qzPbcFiA
     local c_status="Cleaning up..."
-    local template_size_before=$(du -h "$PVE_SOURCE_OUTPUT" | cut -f1)
+    local template_size_before=0
+
+    if [[ -f "$PVE_SOURCE_OUTPUT" ]]; then
+       template_size_before=$(du -h "$PVE_SOURCE_OUTPUT" | cut -f1)
+    fi 
 
     # Reset screen & cursor position
     if [[ "$CT_SCREENP" -eq 1 ]]; then
@@ -487,15 +491,17 @@ function cleanup () {
     fi 
     
     msg "$c_status"
-    if [[ "$OPT_CLEANUP" -eq 1 || "$CT_SUCCESS" -eq 0 ]] && [[ -f "$PVE_SOURCE_OUTPUT" ]]; then
+    if [[ "$OPT_CLEANUP" -eq 1 || "$CT_SUCCESS" -eq 0 ]]; then
 
-        rm -rf "$PVE_SOURCE_OUTPUT"
+        if [[ -f "$PVE_SOURCE_OUTPUT" ]]; then 
+            rm -rf "$PVE_SOURCE_OUTPUT"
         
-        if [[ $? -ne 0 ]]; then 
-            check_error "Failed to cleanup ${CBlue}$PVE_SOURCE_OUTPUT${ENDMARKER} :()"
-        else
-            check_ok "Removed  ${CBlue}$PVE_SOURCE_OUTPUT${ENDMARKER} (-$template_size_before)"
-        fi 
+            if [[ $? -ne 0 ]]; then 
+                check_error "Failed to cleanup ${CBlue}$PVE_SOURCE_OUTPUT${ENDMARKER} :()"
+            else
+                check_ok "Removed  ${CBlue}$PVE_SOURCE_OUTPUT${ENDMARKER} (-$template_size_before)"
+            fi 
+        fi
     else
         check_ok "Leaving  ${CBlue}$PVE_SOURCE_OUTPUT${ENDMARKER} ($template_size_before)"
     fi
@@ -535,7 +541,7 @@ function main() {
 }
 
 function usage() {
-    banner
+    banner 0
     echo "Usage: ${CYellow}$0${ENDMARKER} ${CBlue}--source${ENDMARKER} <hostname> ${CBlue}--target${ENDMARKER} <name> ${CBlue}--storage${ENDMARKER} <name> [options]"
     echo "Options:"
     echo "  ${CCyan}--storage${ENDMARKER} <name>"
