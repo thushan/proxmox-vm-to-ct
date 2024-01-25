@@ -436,6 +436,7 @@ function create_vm_snapshot() {
     msg "$c_status"
 
     tput smcup
+    tput sc
     CT_SCREENP=1
     tput csr 5 $(($LINES - 2))
     tput clear
@@ -447,7 +448,7 @@ function create_vm_snapshot() {
         >"$PVE_SOURCE_OUTPUT"
 
     tput rmcup
-    tput csr 0 $(($LINES - 1))
+    tput rc
     CT_SCREENP=0
 
     msg_done "$c_status"
