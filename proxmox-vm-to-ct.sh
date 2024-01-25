@@ -95,6 +95,17 @@ function banner() {
     printf "$BANNER"
 }
 
+function banner_ssh() {
+    BANNER=" ${CWhite} ___             ${CWhite}               ${CDietPi} ___  _     _   ___ _ 
+ ${CWhite}| _ \_ _ ___${CProxmox}__ __${CWhite}_ __  ___${CProxmox}__ __ ${CDietPi}|   \(_)___| |_| _ (_)
+ ${CWhite}|  _/ '_/ _ ${CProxmox}\ \ /${CWhite} '  \/ _ ${CProxmox}\ \ / ${CDietPi}| |) | / -_)  _|  _/ |
+ ${CWhite}| | |_| \___${CProxmox}/_\_\\${CWhite}_|_|_\___${CProxmox}/_\_\ ${CDietPi}|___/|_\___|\__|_| |_| 
+ ${CWhite}|_|      ${CGreen}SSH://${CPurple}root@${COrange}$PVE_SOURCE${ENDMARKER}
+
+"
+    printf "$BANNER"
+}
+
 function msg() {
     echo "${CMagenta}$1${ENDMARKER}"
 }
@@ -422,17 +433,17 @@ function create_vm_snapshot() {
     msg "$c_status"
 
     tput smcup
-    tput csr 1 $(($LINES - 5))
+    tput csr 5 $(($LINES - 2))
     tput clear
-    tput cup $(($LINES / 2)) $((($COLUMNS - 10) / 2))
-    banner
+    tput cup 0 0
+    banner_ssh
 
     ssh "root@$PVE_SOURCE" \
         "$(typeset -f vm_ct_prep); $(typeset -f vm_ct_prep_dietpi); $(typeset -f vm_fs_snapshot); $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); vm_ct_prep; vm_fs_snapshot" \
         >"$PVE_SOURCE_OUTPUT"
 
     tput rmcup
-    
+
     msg_done "$c_status"
 }
 function prompt_password() {    
