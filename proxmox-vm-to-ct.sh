@@ -435,10 +435,9 @@ function create_vm_snapshot() {
     
     msg "$c_status"
 
-    tput smcup
-    tput sc
+    cursor_save
     CT_SCREENP=1
-    tput csr 5 $(($LINES - 2))
+    
     tput clear
     tput cup 0 0
     banner 1
@@ -447,12 +446,20 @@ function create_vm_snapshot() {
         "$(typeset -f vm_ct_prep); $(typeset -f vm_ct_prep_dietpi); $(typeset -f vm_fs_snapshot); $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); vm_ct_prep; vm_fs_snapshot" \
         >"$PVE_SOURCE_OUTPUT"
 
-    tput rmcup
-    tput csr 0 $(($LINES - 1))
-    tput rc
+    cursor_restore
     CT_SCREENP=0
 
     msg_done "$c_status"
+}
+function cursor_save() {
+    tput smcup
+    tput sc
+    tput csr 5 $(($LINES - 2))
+}
+function cursor_restore() {
+    tput rmcup
+    tput csr 0 $(($LINES - 1))
+    tput rc
 }
 function prompt_password() {    
     
@@ -482,14 +489,12 @@ function cleanup () {
     local template_size_before=0
 
     if [[ -f "$PVE_SOURCE_OUTPUT" ]]; then
-       template_size_before=$(du -h "$PVE_SOURCE_OUTPUT" | cut -f1)
+        template_size_before=$(du -h "$PVE_SOURCE_OUTPUT" | cut -f1)
     fi 
 
     # Reset screen & cursor position
     if [[ "$CT_SCREENP" -eq 1 ]]; then
-        tput rmcup        
-        clear
-        tput csr 0 $(($LINES - 1))
+        cursor_restore
     fi 
     
     msg "$c_status"
@@ -522,9 +527,9 @@ function main() {
     fi
 
     if [[ "$OPT_PROMPT_PASS" -eq 1 ]]; then
-       prompt_password
+        prompt_password
     else
-       CT_PASSWORD=$TEMP_PASS
+        CT_PASSWORD=$TEMP_PASS
     fi
 
     # Get the list of storage containers
