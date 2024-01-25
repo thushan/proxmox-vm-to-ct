@@ -79,6 +79,9 @@ BOLD=$(tput smso)
 UNBOLD=$(tput rmso)
 ENDMARKER=$(tput sgr0)
 
+LINES=$(tput lines)
+COLUMNS=$(tput cols)
+
 function banner() {
     BANNER=" ${CWhite} ___             ${CWhite}               ${CDietPi} ___  _     _   ___ _ 
  ${CWhite}| _ \_ _ ___${CProxmox}__ __${CWhite}_ __  ___${CProxmox}__ __ ${CDietPi}|   \(_)___| |_| _ (_)
@@ -418,10 +421,18 @@ function create_vm_snapshot() {
     
     msg "$c_status"
 
+    tput smcup
+    tput csr 1 $(($LINES - 5))
+    tput clear
+    tput cup $(($LINES / 2)) $((($COLUMNS - 10) / 2))
+    banner
+
     ssh "root@$PVE_SOURCE" \
         "$(typeset -f vm_ct_prep); $(typeset -f vm_ct_prep_dietpi); $(typeset -f vm_fs_snapshot); $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); vm_ct_prep; vm_fs_snapshot" \
         >"$PVE_SOURCE_OUTPUT"
 
+    tput rmcup
+    
     msg_done "$c_status"
 }
 function prompt_password() {    
