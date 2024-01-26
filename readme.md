@@ -254,7 +254,7 @@ For VM's that have a `containerd` instance (or Docker, Podman etc) we need a few
 > Changes are only made if we detect a DietPi installation by checking for
 > `/boot/dietpi/.version` file.
 
-The script prep's a DietPi (6, 7 or 8.x release) by making the following changes:
+The script prep's a DietPi (6.x | 7.x | 8.x or 9.x release) by making the following changes:
 
 * Sets the `.dietpi_hw_model_identifier` from `21` (`x86_64`) to `75` (`container`) as per [documentation](https://github.com/MichaIng/DietPi/blob/master/dietpi/func/dietpi-obtain_hw_model#L27)
 * Sets up first-login install sequence (even if you've done it already) so each container gets updates and updating of passwords instead of any randomly generated ones from the script by modifying `/boot/dietpi/.installstage`.
@@ -263,7 +263,7 @@ The script prep's a DietPi (6, 7 or 8.x release) by making the following changes
 
 The changes are found in the `vm_ct_prep` function (a snapshot can be found [here](https://github.com/thushan/proxmox-vm-to-ct/blob/198a7516c04c044ed90645864643677004884586/proxmox-vm-to-ct.sh#L395).)
 
-You can skip these for non-DietPi images with `--ignore-dietpi` or overall `--ignore-prep` switches but are ignored if no DietPi image is detected too.
+You can skip these for non-DietPi images with `--ignore-dietpi` or overall `--ignore-prep` switches, but are ignored if no DietPi image is detected (say it's a stock debian VM).
 
 ### Grub Boot, OMG WHAT?
 
@@ -271,7 +271,7 @@ OMG, what the heck is this?
 
 ![Grub Prune](artefacts/intro-proxmox-ct-grub.png)
 
-Don't worry, your DietPi image doesn't need `grub-pc,m tiny-initramfs & linux-image-amd64` packages, so they were removed and it's asking whether to remove them from Grub. You can say `YES`.
+Don't worry, your DietPi image doesn't need `grub-pc,m tiny-initramfs & linux-image-amd64` packages, so they were removed and it's asking whether to remove them from Grub. You can say `YES` - see [Michalng's comment](https://dietpi.com/blog/?p=2642#comment-5808).
 
 # Issues, Comments, Improvements
 
