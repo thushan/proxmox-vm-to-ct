@@ -59,6 +59,13 @@ See further [examples](#Examples) below.
 > 
 > Eg. `--source-output ~/dietpi-first-attempt.tar.gz`
 
+## Example Run
+
+Creating a container named `hello-world` from a dockerised VM `192.168.0.199`, with an auto-generated password & default containerd options that's stored in `local-lvm`:
+
+![Proxmox Run](artefacts/full-run-v0.9.x.png)
+
+Now, you can start it up via `$ pct start 101` & login with the password above - ssh don't tell anyone!
 
 ## The Process
 
@@ -112,7 +119,7 @@ For a running VM named `the-matrix-sql` (with ID: `100`; IP: `192.168.0.152`), t
 
 #### Prompt for password
 
-If you want to set a password but be prompted for it, append the `--prompt-password` option that will request your password securely, avoiding the auto-generated password.
+If you want to set a password but be prompted for it, append the `--prompt-password` switch that will request your password securely, avoiding the auto-generated password.
 
 ```
 ./proxmox-vm-to-ct.sh --source 192.168.0.152 \
@@ -121,17 +128,6 @@ If you want to set a password but be prompted for it, append the `--prompt-passw
                       --default-config \
                       --prompt-password
 ```
-
-![Alt text](artefacts/intro-proxmox-vm-to-ct-demo1.png)
-
-`pv2c` will await you to enter your SSH password for the server `192.168.0.152` (you can also use the hostname - Eg. `the-matrix-sql.fritz.box`).
-
-After entering your password, `pv2c` will go & modify the VM (if you didn't use the `--ignore-prep` flag) and collect the base files to create the container from and store it as a `{source-name}.tar.gz` file.
-
-![Alt text](artefacts/intro-proxmox-vm-to-ct-demo2.png)
-
-After a few moments, you'll see that you've got yourself a new container named `the-matrix-reloaded` with the ID `101` awaiting to be started. The password is automatically generated, so you can use the one included.
-
 #### Ignore Prep'ing of VM
 
 If you want to avoid [changes to the vm](#dietpi-changes) by the script, use the `--ignore-prep` switch.
