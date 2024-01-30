@@ -37,6 +37,7 @@ CT_SUCCESS=0
 CT_SCREENP=0
 
 # Defaults for CT
+OPT_DEFAULTS_FILE=-1
 OPT_DEFAULTS_NONE=0
 OPT_DEFAULTS_DEFAULT=1
 OPT_DEFAULTS_CONTAINERD=2
@@ -277,34 +278,58 @@ function create_container() {
         --onboot $CT_ONBOOT    
 }
 
-function map_ct_to_defaults() {
-    # TODO: Override defaults with user specified options
+function map_ct_to_defaults() {    
 
     if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_NONE ]]; then
         return
     fi 
 
-    # Set base defaults
-    CT_CPU=$CT_DEFAULT_CPU
-    CT_RAM=$CT_DEFAULT_RAM
-    CT_HDD=$CT_DEFAULT_HDD
-    CT_UNPRIVILEGED=$CT_DEFAULT_UNPRIVILEGED
-    CT_NETWORKING=$CT_DEFAULT_NETWORKING
-    CT_FEATURES=$CT_DEFAULT_FEATURES
-    CT_ONBOOT=$CT_DEFAULT_ONBOOT
-    CT_ARCH=$CT_DEFAULT_ARCH
-    CT_OSTYPE=$CT_DEFAULT_OSTYPE
+    if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_DEFAULT ]] || 
+       [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_CONTAINERD ]]; then
+        # Set base defaults
+        CT_CPU=$CT_DEFAULT_CPU
+        CT_RAM=$CT_DEFAULT_RAM
+        CT_HDD=$CT_DEFAULT_HDD
+        CT_UNPRIVILEGED=$CT_DEFAULT_UNPRIVILEGED
+        CT_NETWORKING=$CT_DEFAULT_NETWORKING
+        CT_FEATURES=$CT_DEFAULT_FEATURES
+        CT_ONBOOT=$CT_DEFAULT_ONBOOT
+        CT_ARCH=$CT_DEFAULT_ARCH
+        CT_OSTYPE=$CT_DEFAULT_OSTYPE
+    fi
     
-    # 
-    if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_CONTAINERD ]]; then        
+    if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_CONTAINERD ]]; then
         CT_UNPRIVILEGED=$CT_DEFAULT_DOCKER_UNPRIVILEGED
         CT_FEATURES=$CT_DEFAULT_DOCKER_FEATURES
     fi
 
+    if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_FILE ]]; then
+        load_ct_configuration "$OPT_TARGET_CONFIG"
+    fi
 }
+function load_ct_configuration()
+{
+    local config="$1"    
+    local c_status="Loading Configuration..."
 
+    msg "$c_status"
+    while IFS="=" read -r key value; do
+    case "$key" in
+        "target-cpu") CT_CPU="$value" ;;
+        "target-ram") CT_RAM="$value" ;;
+        "target-hdd") CT_HDD="$value" ;;
+        "target-unprivileged") CT_UNPRIVILEGED="$value" ;;
+        "target-networking") CT_NETWORKING="$value" ;;
+        "target-features") CT_FEATURES="$value" ;;
+        "target-onboot") CT_ONBOOT="$value" ;;
+        "target-arch") CT_ARCH="$value" ;;
+        "target-ostype") CT_OSTYPE="$value" ;;
+    esac
+    done < "$config"
+    msg_done "$c_status"
+}
 function print_opts() {
-    local c_status="Gathering options..."    
+    local c_status="Gathering options..."
     local CT_SECURE_PASSWORD="**********"
     local CT_DEFAULT_CONFIG_TYPE=""
     
