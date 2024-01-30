@@ -21,6 +21,8 @@ PVE_STORAGE=""
 PVE_SOURCE_OUTPUT=""
 PVE_DESCRIPTION="Converted from VM to CT via <a href="http://www.github.com/thushan/proxmox-vm-to-ct">proxmox-vm-to-ct</a>."
 
+OPT_TARGET_CONFIG=""
+
 OPT_CLEANUP=0
 OPT_DEFAULT_CONFIG=0
 OPT_SOURCE_OUTPUT=""
@@ -52,7 +54,6 @@ CT_DEFAULT_OSTYPE="debian"
 CT_DEFAULT_DOCKER_UNPRIVILEGED=0
 CT_DEFAULT_DOCKER_FEATURES="nesting=1,keyctl=1"
 
-# todo: make these configurable from CLI later
 CT_CPU=$CT_DEFAULT_CPU
 CT_RAM=$CT_DEFAULT_RAM
 CT_HDD=$CT_DEFAULT_HDD
@@ -245,6 +246,12 @@ function check_args() {
         usage
         exit 1
     fi
+    if [[ ! -z "$OPT_TARGET_CONFIG" ]] && [[ ! -f "$OPT_TARGET_CONFIG" ]]; then
+        error "Target Configuration file '${CYellow}${OPT_TARGET_CONFIG}${ENDMARKER}' not found.
+        "
+        usage
+        exit 1
+    fi
 }
 
 function fatal-script() {
@@ -311,6 +318,10 @@ function print_opts() {
         CT_DEFAULT_CONFIG_TYPE="default"
     fi
 
+    if [[ ! -z "$OPT_TARGET_CONFIG" ]]; then
+        CT_DEFAULT_CONFIG_TYPE="$CT_DEFAULT_CONFIG_TYPE + $OPT_TARGET_CONFIG"
+    fi
+
     msg "$c_status"
     msg3 "PVE Storage:      ${CBlue}$PVE_STORAGE${ENDMARKER}"
     msg3 "Source VM:        ${CBlue}$PVE_SOURCE${ENDMARKER}"
@@ -318,7 +329,7 @@ function print_opts() {
     msg3 "- Cleanup:        ${CCyan}$OPT_CLEANUP${ENDMARKER}"
     msg3 "Target CT:        ${CBlue}$PVE_TARGET${ENDMARKER}"
     msg3 "- Password:       ${CRed}$CT_SECURE_PASSWORD${ENDMARKER}"
-    msg3 "Default Config:   ${CBlue}$CT_DEFAULT_CONFIG_TYPE${ENDMARKER}"
+    msg3 "Target Config:    ${CBlue}$CT_DEFAULT_CONFIG_TYPE${ENDMARKER}"
     msg3 "- ID:             ${CCyan}$CT_NEXT_ID${ENDMARKER}"
     msg3 "- ARCH:           ${CCyan}$CT_ARCH${ENDMARKER}"
     msg3 "- CPU:            ${CCyan}$CT_CPU${ENDMARKER}"
@@ -596,6 +607,10 @@ while [ "$#" -gt 0 ]; do
         ;;
     -o | --output | --source-output)
         OPT_SOURCE_OUTPUT="$2"
+        shift
+        ;;
+    --target-config)
+        OPT_TARGET_CONFIG="$2"
         shift
         ;;
     --cleanup)
