@@ -315,15 +315,15 @@ function load_ct_configuration()
     msg "$c_status"
     while IFS="=" read -r key value; do
     case "$key" in
-        "target-cpu") CT_CPU="$value" ;;
-        "target-ram") CT_RAM="$value" ;;
-        "target-hdd") CT_HDD="$value" ;;
-        "target-unprivileged") CT_UNPRIVILEGED="$value" ;;
-        "target-networking") CT_NETWORKING="$value" ;;
-        "target-features") CT_FEATURES="$value" ;;
-        "target-onboot") CT_ONBOOT="$value" ;;
-        "target-arch") CT_ARCH="$value" ;;
-        "target-ostype") CT_OSTYPE="$value" ;;
+        "CT_CPU") CT_CPU="$value" ;;
+        "CT_RAM") CT_RAM="$value" ;;
+        "CT_HDD") CT_HDD="$value" ;;
+        "CT_UNPRIVILEGED") CT_UNPRIVILEGED="$value" ;;
+        "CT_NETWORKING") CT_NETWORKING="$value" ;;
+        "CT_FEATURES") CT_FEATURES="$value" ;;
+        "CT_ONBOOT") CT_ONBOOT="$value" ;;
+        "CT_ARCH") CT_ARCH="$value" ;;
+        "CT_OSTYPE") CT_OSTYPE="$value" ;;
     esac
     done < "$config"
     msg_done "$c_status"
