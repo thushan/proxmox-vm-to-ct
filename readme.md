@@ -6,7 +6,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 ![Updated](https://img.shields.io/github/last-commit/thushan/proxmox-vm-to-ct)
-![Version](https://img.shields.io/badge/Version-v0.9.2-blue)
+![Version](https://img.shields.io/badge/Version-v1.0.0-blue)
 ![Proxmox](https://img.shields.io/badge/Proxmox-7.x%20%7C%208.x-orange?logo=proxmox)
 ![DietPi](https://img.shields.io/badge/DietPi-6.x%20%7C%207.x%20%7C%208.x%20%7C%209.x-C1FF00?logo=dietpi)
 
@@ -105,6 +105,43 @@ The `proxmox-vm-to-ct.sh` script takes a few arguments to create a container fro
 > You can use the hostname (eg. `the-matrix.local`) or the IP itself for the source VM (`192.168.0.101`), either way
 > you're going to have to SSH into the box!
 
+#### Custom Configurations
+
+You can specify your own Proxmox CT Configuration by creating a configuration file like below - eg. `hexa-core.config`:
+
+```env
+CT_CPUS=8
+CT_RAM=10240
+
+```
+
+> \[!IMPORTANT]
+>
+> Configuration files **MUST** have a blank empty line at the end.
+>
+> You can comment lines with a `# this is a comment`
+
+Then pass that to the script:
+
+```
+./proxmox-vm-to-ct.sh --storage local-lvm \
+                      --source 192.168.0.152 \
+                      --target the-matrix-reloaded \
+                      --target-config hexa-core.config
+```
+
+Other configuration items will be loaded from the [default configuration](#default-configuration), however if you want to overide with say, the [docker/containerd configuration](#default-configuration---containerd--docker--podman), you can pass in a default config switch:
+
+```
+./proxmox-vm-to-ct.sh --storage local-lvm \
+                      --source 192.168.0.152 \
+                      --target the-matrix-reloaded \
+                      --target-config hexa-core.config \
+                      --default-config-containerd
+```
+
+For all the configuration options, see [default.config](./default.config).
+
 #### Saving Source Output
 
 For a running VM named `the-matrix-sql` (with ID: `100`; IP: `192.168.0.152`), to create a (default) container named `the-matrix-reloaded` on a Proxmox Server where the storage container is named `local-lvm` but store the created image for future use in you home folder:
@@ -162,12 +199,14 @@ Usage: proxmox-vm-to-ct.sh --source <hostname> --target <name> --storage <name> 
 Options:
   --storage <name>
       Name of the Proxmox Storage container (Eg. local-zfs, local-lvm, etc)
-  --target <name>
-      Name of the container to create (Eg. postgres-ct)
   --source <hostname>
       Source VM to convert to CT (Eg. postgres-vm.fritz.box or 192.168.0.10)
   --source-output <path>, --output <path>, -o <path>
       Location of the source VM output (default: /tmp/proxmox-vm-to-ct/<hostname>.tar.gz)
+  --target <name>
+      Name of the container to create (Eg. postgres-ct)
+  --target-config <path>
+      Path to target configuration, for an example see default-config.env
   --cleanup
       Cleanup the source compressed image after conversion (the *.tar.gz file)
   --default-config

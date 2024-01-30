@@ -4,7 +4,7 @@
 # Author: Thushan Fernando <thushan.fernando@gmail.com>
 # http://github.com/thushan/proxmox-vm-to-ct
 
-VERSION=0.9.2
+VERSION=1.0.0
 
 set -Eeuo pipefail
 set -o nounset
@@ -124,9 +124,11 @@ function msg2() {
 function msg3() {
     echo "${CWhite}$1${ENDMARKER}"
 }
-
 function msg4() {
     echo "${CYellow}$1${ENDMARKER}"
+}
+function msg_default() {
+    echo "$1"
 }
 function error() {
     echo "${BOLD}${CRed}ERROR:${UNBOLD}${ENDMARKER} $1${ENDMARKER}" >&2
@@ -278,33 +280,38 @@ function create_container() {
         --onboot $CT_ONBOOT    
 }
 
+function init_ct_config() {
+
+    map_ct_to_defaults
+
+    # If we're here, we know this exists now
+    if [[ -n "$OPT_TARGET_CONFIG" ]]; then
+        load_ct_configuration "$OPT_TARGET_CONFIG"        
+    fi
+
+}
+
 function map_ct_to_defaults() {    
 
+    # They didn't specify a default, so let's not load any
     if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_NONE ]]; then
         return
     fi 
 
-    if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_DEFAULT ]] || 
-       [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_CONTAINERD ]]; then
-        # Set base defaults
-        CT_CPU=$CT_DEFAULT_CPU
-        CT_RAM=$CT_DEFAULT_RAM
-        CT_HDD=$CT_DEFAULT_HDD
-        CT_UNPRIVILEGED=$CT_DEFAULT_UNPRIVILEGED
-        CT_NETWORKING=$CT_DEFAULT_NETWORKING
-        CT_FEATURES=$CT_DEFAULT_FEATURES
-        CT_ONBOOT=$CT_DEFAULT_ONBOOT
-        CT_ARCH=$CT_DEFAULT_ARCH
-        CT_OSTYPE=$CT_DEFAULT_OSTYPE
-    fi
+    # Set base defaults
+    CT_CPU=$CT_DEFAULT_CPU
+    CT_RAM=$CT_DEFAULT_RAM
+    CT_HDD=$CT_DEFAULT_HDD
+    CT_UNPRIVILEGED=$CT_DEFAULT_UNPRIVILEGED
+    CT_NETWORKING=$CT_DEFAULT_NETWORKING
+    CT_FEATURES=$CT_DEFAULT_FEATURES
+    CT_ONBOOT=$CT_DEFAULT_ONBOOT
+    CT_ARCH=$CT_DEFAULT_ARCH
+    CT_OSTYPE=$CT_DEFAULT_OSTYPE
     
     if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_CONTAINERD ]]; then
         CT_UNPRIVILEGED=$CT_DEFAULT_DOCKER_UNPRIVILEGED
         CT_FEATURES=$CT_DEFAULT_DOCKER_FEATURES
-    fi
-
-    if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_FILE ]]; then
-        load_ct_configuration "$OPT_TARGET_CONFIG"
     fi
 }
 function load_ct_configuration()
@@ -572,7 +579,7 @@ function main() {
     # Get the list of storage containers
     mapfile -t PVE_STORAGE_LIST < <(pvesm status -content images | awk -v OFS="\\n" -F " +" 'NR>1 {print $1}')
 
-    map_ct_to_defaults
+    init_ct_config
 
     print_opts
     validate_env
@@ -590,12 +597,14 @@ function usage() {
     echo "Options:"
     echo "  ${CCyan}--storage${ENDMARKER} <name>"
     echo "      Name of the Proxmox Storage container (Eg. local-zfs, local-lvm, etc)"
-    echo "  ${CCyan}--target${ENDMARKER} <name>"
-    echo "      Name of the container to create (Eg. postgres-ct)"
     echo "  ${CCyan}--source${ENDMARKER} <hostname>"
     echo "      Source VM to convert to CT (Eg. postgres-vm.fritz.box or 192.168.0.10)"
     echo "  ${CCyan}--source-output${ENDMARKER} <path>, ${CCyan}--output${ENDMARKER} <path>, ${CCyan}-o${ENDMARKER} <path>"
-    echo "      Location of the source VM output (default: /tmp/proxmox-vm-to-ct/<hostname>.tar.gz)"
+    echo "      Location of the source VM output (default: ${CGreen}/tmp/proxmox-vm-to-ct/<hostname>.tar.gz${ENDMARKER})"
+    echo "  ${CCyan}--target${ENDMARKER} <name>"
+    echo "      Name of the container to create (Eg. postgres-ct)"
+    echo "  ${CCyan}--target-config${ENDMARKER} <path>"
+    echo "      Path to target configuration, for an example see ${CGreen}default-config.env${ENDMARKER}"
     echo "  ${CCyan}--cleanup${ENDMARKER}"
     echo "      Cleanup the source compressed image after conversion (the *.tar.gz file)"
     echo "  ${CCyan}--default-config${ENDMARKER}"
