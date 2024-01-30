@@ -4,7 +4,7 @@
 # Author: Thushan Fernando <thushan.fernando@gmail.com>
 # http://github.com/thushan/proxmox-vm-to-ct
 
-VERSION=0.9.2
+VERSION=1.0.0
 
 set -Eeuo pipefail
 set -o nounset
@@ -21,6 +21,8 @@ PVE_STORAGE=""
 PVE_SOURCE_OUTPUT=""
 PVE_DESCRIPTION="Converted from VM to CT via <a href="http://www.github.com/thushan/proxmox-vm-to-ct">proxmox-vm-to-ct</a>."
 
+OPT_TARGET_CONFIG=""
+
 OPT_CLEANUP=0
 OPT_DEFAULT_CONFIG=0
 OPT_SOURCE_OUTPUT=""
@@ -35,6 +37,7 @@ CT_SUCCESS=0
 CT_SCREENP=0
 
 # Defaults for CT
+OPT_DEFAULTS_FILE=-1
 OPT_DEFAULTS_NONE=0
 OPT_DEFAULTS_DEFAULT=1
 OPT_DEFAULTS_CONTAINERD=2
@@ -52,7 +55,6 @@ CT_DEFAULT_OSTYPE="debian"
 CT_DEFAULT_DOCKER_UNPRIVILEGED=0
 CT_DEFAULT_DOCKER_FEATURES="nesting=1,keyctl=1"
 
-# todo: make these configurable from CLI later
 CT_CPU=$CT_DEFAULT_CPU
 CT_RAM=$CT_DEFAULT_RAM
 CT_HDD=$CT_DEFAULT_HDD
@@ -122,9 +124,11 @@ function msg2() {
 function msg3() {
     echo "${CWhite}$1${ENDMARKER}"
 }
-
 function msg4() {
     echo "${CYellow}$1${ENDMARKER}"
+}
+function msg_default() {
+    echo "$1"
 }
 function error() {
     echo "${BOLD}${CRed}ERROR:${UNBOLD}${ENDMARKER} $1${ENDMARKER}" >&2
@@ -245,6 +249,12 @@ function check_args() {
         usage
         exit 1
     fi
+    if [[ ! -z "$OPT_TARGET_CONFIG" ]] && [[ ! -f "$OPT_TARGET_CONFIG" ]]; then
+        error "Target Configuration file '${CYellow}${OPT_TARGET_CONFIG}${ENDMARKER}' not found.
+        "
+        usage
+        exit 1
+    fi
 }
 
 function fatal-script() {
@@ -270,9 +280,20 @@ function create_container() {
         --onboot $CT_ONBOOT    
 }
 
-function map_ct_to_defaults() {
-    # TODO: Override defaults with user specified options
+function init_ct_config() {
 
+    map_ct_to_defaults
+
+    # If we're here, we know this exists now
+    if [[ -n "$OPT_TARGET_CONFIG" ]]; then
+        load_ct_configuration "$OPT_TARGET_CONFIG"        
+    fi
+
+}
+
+function map_ct_to_defaults() {    
+
+    # They didn't specify a default, so let's not load any
     if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_NONE ]]; then
         return
     fi 
@@ -288,16 +309,34 @@ function map_ct_to_defaults() {
     CT_ARCH=$CT_DEFAULT_ARCH
     CT_OSTYPE=$CT_DEFAULT_OSTYPE
     
-    # 
-    if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_CONTAINERD ]]; then        
+    if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_CONTAINERD ]]; then
         CT_UNPRIVILEGED=$CT_DEFAULT_DOCKER_UNPRIVILEGED
         CT_FEATURES=$CT_DEFAULT_DOCKER_FEATURES
     fi
-
 }
+function load_ct_configuration()
+{
+    local config="$1"    
+    local c_status="Loading Configuration..."
 
+    msg "$c_status"
+    while IFS="=" read -r key value; do
+    case "$key" in
+        "CT_CPU") CT_CPU="$value" ;;
+        "CT_RAM") CT_RAM="$value" ;;
+        "CT_HDD") CT_HDD="$value" ;;
+        "CT_UNPRIVILEGED") CT_UNPRIVILEGED="$value" ;;
+        "CT_NETWORKING") CT_NETWORKING="$value" ;;
+        "CT_FEATURES") CT_FEATURES="$value" ;;
+        "CT_ONBOOT") CT_ONBOOT="$value" ;;
+        "CT_ARCH") CT_ARCH="$value" ;;
+        "CT_OSTYPE") CT_OSTYPE="$value" ;;
+    esac
+    done < "$config"
+    msg_done "$c_status"
+}
 function print_opts() {
-    local c_status="Gathering options..."    
+    local c_status="Gathering options..."
     local CT_SECURE_PASSWORD="**********"
     local CT_DEFAULT_CONFIG_TYPE=""
     
@@ -311,6 +350,10 @@ function print_opts() {
         CT_DEFAULT_CONFIG_TYPE="default"
     fi
 
+    if [[ ! -z "$OPT_TARGET_CONFIG" ]]; then
+        CT_DEFAULT_CONFIG_TYPE="$CT_DEFAULT_CONFIG_TYPE + $OPT_TARGET_CONFIG"
+    fi
+
     msg "$c_status"
     msg3 "PVE Storage:      ${CBlue}$PVE_STORAGE${ENDMARKER}"
     msg3 "Source VM:        ${CBlue}$PVE_SOURCE${ENDMARKER}"
@@ -318,7 +361,7 @@ function print_opts() {
     msg3 "- Cleanup:        ${CCyan}$OPT_CLEANUP${ENDMARKER}"
     msg3 "Target CT:        ${CBlue}$PVE_TARGET${ENDMARKER}"
     msg3 "- Password:       ${CRed}$CT_SECURE_PASSWORD${ENDMARKER}"
-    msg3 "Default Config:   ${CBlue}$CT_DEFAULT_CONFIG_TYPE${ENDMARKER}"
+    msg3 "Target Config:    ${CBlue}$CT_DEFAULT_CONFIG_TYPE${ENDMARKER}"
     msg3 "- ID:             ${CCyan}$CT_NEXT_ID${ENDMARKER}"
     msg3 "- ARCH:           ${CCyan}$CT_ARCH${ENDMARKER}"
     msg3 "- CPU:            ${CCyan}$CT_CPU${ENDMARKER}"
@@ -536,7 +579,7 @@ function main() {
     # Get the list of storage containers
     mapfile -t PVE_STORAGE_LIST < <(pvesm status -content images | awk -v OFS="\\n" -F " +" 'NR>1 {print $1}')
 
-    map_ct_to_defaults
+    init_ct_config
 
     print_opts
     validate_env
@@ -554,12 +597,14 @@ function usage() {
     echo "Options:"
     echo "  ${CCyan}--storage${ENDMARKER} <name>"
     echo "      Name of the Proxmox Storage container (Eg. local-zfs, local-lvm, etc)"
-    echo "  ${CCyan}--target${ENDMARKER} <name>"
-    echo "      Name of the container to create (Eg. postgres-ct)"
     echo "  ${CCyan}--source${ENDMARKER} <hostname>"
     echo "      Source VM to convert to CT (Eg. postgres-vm.fritz.box or 192.168.0.10)"
     echo "  ${CCyan}--source-output${ENDMARKER} <path>, ${CCyan}--output${ENDMARKER} <path>, ${CCyan}-o${ENDMARKER} <path>"
-    echo "      Location of the source VM output (default: /tmp/proxmox-vm-to-ct/<hostname>.tar.gz)"
+    echo "      Location of the source VM output (default: ${CGreen}/tmp/proxmox-vm-to-ct/<hostname>.tar.gz${ENDMARKER})"
+    echo "  ${CCyan}--target${ENDMARKER} <name>"
+    echo "      Name of the container to create (Eg. postgres-ct)"
+    echo "  ${CCyan}--target-config${ENDMARKER} <path>"
+    echo "      Path to target configuration, for an example see ${CGreen}default-config.env${ENDMARKER}"
     echo "  ${CCyan}--cleanup${ENDMARKER}"
     echo "      Cleanup the source compressed image after conversion (the *.tar.gz file)"
     echo "  ${CCyan}--default-config${ENDMARKER}"
@@ -596,6 +641,10 @@ while [ "$#" -gt 0 ]; do
         ;;
     -o | --output | --source-output)
         OPT_SOURCE_OUTPUT="$2"
+        shift
+        ;;
+    --target-config)
+        OPT_TARGET_CONFIG="$2"
         shift
         ;;
     --cleanup)
