@@ -321,6 +321,9 @@ function load_ct_configuration()
 
     msg "$c_status"
     while IFS="=" read -r key value; do
+    # Trim in leading/trailing quotes
+    value="${value#\"}"; value="${value%\"}"
+    value="${value#\'}"; value="${value%\'}"
     case "$key" in
         "CT_CPU") CT_CPU="$value" ;;
         "CT_RAM") CT_RAM="$value" ;;
