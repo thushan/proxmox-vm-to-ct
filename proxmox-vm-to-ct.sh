@@ -264,6 +264,9 @@ function create_container() {
     # Reference:
     # https://pve.proxmox.com/pve-docs/pct.1.html
 
+    local c_status="Creating Container..."
+    
+    msg "$c_status"
     pct create $CT_NEXT_ID "$PVE_SOURCE_OUTPUT" \
         --description "$PVE_DESCRIPTION" \
         --hostname "$PVE_TARGET" \
@@ -277,7 +280,8 @@ function create_container() {
         --storage $PVE_STORAGE \
         --password "$CT_PASSWORD" \
         --unprivileged $CT_UNPRIVILEGED \
-        --onboot $CT_ONBOOT    
+        --onboot $CT_ONBOOT
+    msg_done "$c_status"
 }
 
 function init_ct_config() {
@@ -392,7 +396,7 @@ function validate_env() {
 }
 
 function created_container_verify() {
-    local c_status="Verifying Container ${CBlue}$PVE_TARGET${ENDMARKER}..."
+    local c_status="Checking Container ${CBlue}$PVE_TARGET${ENDMARKER}..."
     msg "$c_status"
     local containers=$(pct list | awk 'NR>1 {print $NF}')    
     if [[ ${containers[*]} =~ $PVE_TARGET ]]; then
