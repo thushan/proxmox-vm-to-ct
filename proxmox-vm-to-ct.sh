@@ -23,7 +23,11 @@ PVE_DESCRIPTION="Converted from VM to CT via <a href="http://www.github.com/thus
 
 OPT_TARGET_CONFIG=""
 
-OPT_CLEANUP=0
+OPT_SOURCE_TYPE=
+OPT_SOURCE_TYPE_FILE=1
+OPT_SOURCE_TYPE_SSH=2
+
+OPT_IGNORE_SOURCE_VERIFY=0
 OPT_DEFAULT_CONFIG=0
 OPT_SOURCE_OUTPUT=""
 OPT_IGNORE_PREP=0
@@ -37,7 +41,6 @@ CT_SUCCESS=0
 CT_SCREENP=0
 
 # Defaults for CT
-OPT_DEFAULTS_FILE=-1
 OPT_DEFAULTS_NONE=0
 OPT_DEFAULTS_DEFAULT=1
 OPT_DEFAULTS_CONTAINERD=2
@@ -147,9 +150,13 @@ function check_error() {
 function check_info() {
     echo "[ ${CCyan}INFO${ENDMARKER} ] $1"
 }
+function fatal-script() {
+    fatal "Exiting script..."
+}
 function fatal() {
     echo ""
     echo "${BOLD}${CRed}FATAL:${UNBOLD}${ENDMARKER} $1${ENDMARKER}" >&2
+    echo ""
     exit 1
 }
 
@@ -230,6 +237,23 @@ function check_arch() {
     fi
 }
 
+function check_proxmox_vm_source() {
+
+    if [[ -f "$PVE_SOURCE" ]]; then
+        # check for a valid *.tar.gz        
+        check_info "Using source image ${CBlue}$(basename ${PVE_SOURCE})${ENDMARKER}, checking integrity..."
+        if [[ "$OPT_IGNORE_SOURCE_VERIFY" -eq 0 ]]; then
+            if gzip -t "$PVE_SOURCE" &>/dev/null; then
+                check_ok "Verified source image ${CBlue}$(basename ${PVE_SOURCE})${ENDMARKER}"
+            else
+                check_error "Invalid source image ${CBlue}$(basename ${PVE_SOURCE})${ENDMARKER}"
+                fatal "Please try another source image"
+            fi
+        else
+            check_warn "Verifying source image skipped"
+        fi
+    fi
+}
 function check_args() {
     if [[ ! "$PVE_SOURCE" ]]; then
         error "Source VM not specified | ${CBlue}--source <hostname>${ENDMARKER}
@@ -257,9 +281,6 @@ function check_args() {
     fi
 }
 
-function fatal-script() {
-    fatal "Exiting script..."
-}
 function create_container() {
     # Reference:
     # https://pve.proxmox.com/pve-docs/pct.1.html
@@ -364,8 +385,9 @@ function print_opts() {
     msg "$c_status"
     msg3 "PVE Storage:      ${CBlue}$PVE_STORAGE${ENDMARKER}"
     msg3 "Source VM:        ${CBlue}$PVE_SOURCE${ENDMARKER}"
-    msg3 "- Output:         ${CCyan}$PVE_SOURCE_OUTPUT${ENDMARKER}"
-    msg3 "- Cleanup:        ${CCyan}$OPT_CLEANUP${ENDMARKER}"
+    if [[ "$OPT_SOURCE_TYPE" -eq $OPT_SOURCE_TYPE_SSH ]]; then
+        msg3 "- Output:         ${CCyan}$PVE_SOURCE_OUTPUT${ENDMARKER}"
+    fi
     msg3 "Target CT:        ${CBlue}$PVE_TARGET${ENDMARKER}"
     msg3 "- Password:       ${CRed}$CT_SECURE_PASSWORD${ENDMARKER}"
     msg3 "Target Config:    ${CBlue}$CT_DEFAULT_CONFIG_TYPE${ENDMARKER}"
@@ -382,7 +404,7 @@ function print_opts() {
     msg_done "$c_status"
 }
 function validate_env() {
-    local c_status="Validating environment..."
+    local c_status="Checking environment..."
     msg "$c_status"
     check_sudo
     check_arch
@@ -391,6 +413,7 @@ function validate_env() {
     check_proxmox_version
     check_proxmox_storage
     check_proxmox_container
+    check_proxmox_vm_source
     check_container_settings
     msg_done "$c_status"
 }
@@ -481,6 +504,12 @@ function vm_fs_snapshot() {
         .
 }
 
+function get_vm_snapshot() {
+    if [[ "$OPT_SOURCE_TYPE" -eq "$OPT_SOURCE_TYPE_SSH" ]]; then
+        create_vm_snapshot
+    fi
+}
+
 function create_vm_snapshot() {
     local c_status="${CMagenta}SSH Session:${ENDMARKER} ${CBlue}$PVE_SOURCE${ENDMARKER}..."
     
@@ -538,10 +567,15 @@ function cleanup () {
     # https://www.youtube.com/watch?v=4F4qzPbcFiA
     local c_status="Cleaning up..."
     local template_size_before=0
+    local source_path=""
 
     if [[ -f "$PVE_SOURCE_OUTPUT" ]]; then
         template_size_before=$(du -h "$PVE_SOURCE_OUTPUT" | cut -f1)
-    fi 
+        source_path=$PVE_SOURCE_OUTPUT
+    elif [[ -f "$PVE_SOURCE" ]]; then
+        template_size_before=$(du -h "$PVE_SOURCE" | cut -f1)
+        source_path=$PVE_SOURCE_OUTPUT
+    fi
 
     # Reset screen & cursor position
     if [[ "$CT_SCREENP" -eq 1 ]]; then
@@ -549,20 +583,7 @@ function cleanup () {
     fi 
     
     msg "$c_status"
-    if [[ "$OPT_CLEANUP" -eq 1 || "$CT_SUCCESS" -eq 0 ]]; then
-
-        if [[ -f "$PVE_SOURCE_OUTPUT" ]]; then 
-            rm -rf "$PVE_SOURCE_OUTPUT"
-        
-            if [[ $? -ne 0 ]]; then 
-                check_error "Failed to cleanup ${CBlue}$PVE_SOURCE_OUTPUT${ENDMARKER} :()"
-            else
-                check_ok "Removed  ${CBlue}$PVE_SOURCE_OUTPUT${ENDMARKER} (-$template_size_before)"
-            fi 
-        fi
-    else
-        check_ok "Leaving  ${CBlue}$PVE_SOURCE_OUTPUT${ENDMARKER} ($template_size_before)"
-    fi
+    check_ok "Leaving  ${CBlue}$source_path${ENDMARKER} ($template_size_before)"
     msg_done "$c_status"
 }
 
@@ -571,11 +592,19 @@ function main() {
     TEMP_DIR=/tmp/proxmox-vm-to-ct
     TEMP_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10; echo)
 
-    if [[ "$OPT_SOURCE_OUTPUT" ]]; then
-        PVE_SOURCE_OUTPUT=$OPT_SOURCE_OUTPUT
+    if [[ -f "$PVE_SOURCE" ]]; then
+        OPT_SOURCE_TYPE=$OPT_SOURCE_TYPE_FILE
+        PVE_SOURCE_OUTPUT=$PVE_SOURCE
     else
-        PVE_SOURCE_OUTPUT=$TEMP_DIR/$PVE_SOURCE.tar.gz
+        OPT_SOURCE_TYPE=$OPT_SOURCE_TYPE_SSH
+
+        if [[ "$OPT_SOURCE_OUTPUT" ]]; then
+            PVE_SOURCE_OUTPUT=$OPT_SOURCE_OUTPUT
+        else
+            PVE_SOURCE_OUTPUT=$TEMP_DIR/$PVE_SOURCE.tar.gz
+        fi
     fi
+
 
     if [[ "$OPT_PROMPT_PASS" -eq 1 ]]; then
         prompt_password
@@ -591,7 +620,7 @@ function main() {
     print_opts
     validate_env
     ensure_env
-    create_vm_snapshot
+    get_vm_snapshot
     create_container
     created_container_verify
     created_container_print_opts
@@ -604,16 +633,14 @@ function usage() {
     echo "Options:"
     echo "  ${CCyan}--storage${ENDMARKER} <name>"
     echo "      Name of the Proxmox Storage container (Eg. local-zfs, local-lvm, etc)"
-    echo "  ${CCyan}--source${ENDMARKER} <hostname>"
-    echo "      Source VM to convert to CT (Eg. postgres-vm.fritz.box or 192.168.0.10)"
+    echo "  ${CCyan}--source${ENDMARKER} <hostname> | <file: *.tar.gz>"
+    echo "      Source VM to convert to CT (Eg. postgres-vm.fritz.box or 192.168.0.10, source-vm.tar.gz file locally)"
     echo "  ${CCyan}--source-output${ENDMARKER} <path>, ${CCyan}--output${ENDMARKER} <path>, ${CCyan}-o${ENDMARKER} <path>"
     echo "      Location of the source VM output (default: ${CGreen}/tmp/proxmox-vm-to-ct/<hostname>.tar.gz${ENDMARKER})"
     echo "  ${CCyan}--target${ENDMARKER} <name>"
     echo "      Name of the container to create (Eg. postgres-ct)"
     echo "  ${CCyan}--target-config${ENDMARKER} <path>"
     echo "      Path to target configuration, for an example see ${CGreen}default-config.env${ENDMARKER}"
-    echo "  ${CCyan}--cleanup${ENDMARKER}"
-    echo "      Cleanup the source compressed image after conversion (the *.tar.gz file)"
     echo "  ${CCyan}--default-config${ENDMARKER}"
     echo "      Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)"
     echo "  ${CCyan}--default-config-containerd${ENDMARKER}, ${CCyan}--default-config-docker${ENDMARKER}"
@@ -622,6 +649,8 @@ function usage() {
     echo "      Ignore modifying the VM before snapshotting"
     echo "  ${CCyan}--ignore-dietpi${ENDMARKER}"
     echo "      Ignore DietPi specific modifications on the VM before snapshotting. (ignored with --ignore-prep)"
+    echo "  ${CCyan}--ignore-source-verify${ENDMARKER}"
+    echo "      Ignore Source Archive verification step."
     echo "  ${CCyan}--prompt-password${ENDMARKER}"
     echo "      Prompt for a password for the container, temporary one generated & displayed otherwise"
     echo "  ${CCyan}--help${ENDMARKER}"
@@ -654,9 +683,6 @@ while [ "$#" -gt 0 ]; do
         OPT_TARGET_CONFIG="$2"
         shift
         ;;
-    --cleanup)
-        OPT_CLEANUP=1
-        ;;
     --default-config)
         OPT_DEFAULT_CONFIG=$OPT_DEFAULTS_DEFAULT
         ;;
@@ -668,6 +694,9 @@ while [ "$#" -gt 0 ]; do
         ;;
     --ignore-dietpi)
         OPT_IGNORE_DIETPI=1
+        ;;
+    --ignore-source-verify)
+        OPT_IGNORE_SOURCE_VERIFY=1
         ;;
     --prompt-password)
         OPT_PROMPT_PASS=1

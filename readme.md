@@ -53,11 +53,15 @@ See further [examples](#Examples) below.
 
 > \[!TIP]
 >
-> If you don't want to keep the `*.targ.gz` file around, you can use the `--cleanup` switch to delete it after use.
->
-> However, if you want to retain the files for later, you can use the `--source-output` argument with a path to save it elsewhere.
+> If you want to retain the files for later, you can use the `--source-output` argument with a path to save it elsewhere.
 > 
 > Eg. `--source-output ~/dietpi-first-attempt.tar.gz`
+>
+> Otherwise it will be created in your /tmp/proxmox-vm-to-ct folder.
+> 
+> Next time you can reuse the above to create more containers by passing in the filename as the source.
+> 
+> Eg. `./proxmox-vm-to-ct.sh  ~/dietpi-first-attempt.tar.gz --target matrix-revolutions ...`> 
 
 ## Example Run
 
@@ -154,6 +158,45 @@ For a running VM named `the-matrix-sql` (with ID: `100`; IP: `192.168.0.152`), t
                       -o ~/proxmox-dietpi.tar.gz
 ```
 
+#### Reusing Source Output
+
+Once you [save a snapshot of a VM](#saving-source-output), you can reuse that to create more containers by using the `--source` switch and passing in the `*.tar.gz` file.
+
+Step 1 - create your image
+
+```
+./proxmox-vm-to-ct.sh --source 192.168.0.152 \
+                      --target the-matrix-reloaded \
+                      --storage local-lvm \
+                      --default-config \
+                      -o ~/proxmox-dietpi.tar.gz
+```
+
+Step 2 - reuse your image
+
+```
+./proxmox-vm-to-ct.sh --source ~/proxmox-dietpi.tar.gz \
+                      --target the-matrix-revolutions \
+                      --storage local-lvm \
+                      --default-config
+```
+
+This is supported in v1.0+ only and all archives will be verified before being used.
+
+#### Skipping Source Image Verification
+
+All source images used to create CT's are verified, but you can skip with `--ignore-source-verify`.
+
+```
+./proxmox-vm-to-ct.sh --source ~/proxmox-dietpi.tar.gz \
+                      --target the-matrix-revolutions \
+                      --storage local-lvm \
+                      --default-config \
+                      --ignore-source-verify
+```
+
+This isn't recommended unless you intend to reuse the same image over multiple CT's being created (Eg. in a script) but doing so will speed up execution for times you know your `*.tar.gz` is fine.
+
 #### Prompt for password
 
 If you want to set a password but be prompted for it, append the `--prompt-password` switch that will request your password securely, avoiding the auto-generated password.
@@ -199,16 +242,14 @@ Usage: proxmox-vm-to-ct.sh --source <hostname> --target <name> --storage <name> 
 Options:
   --storage <name>
       Name of the Proxmox Storage container (Eg. local-zfs, local-lvm, etc)
-  --source <hostname>
-      Source VM to convert to CT (Eg. postgres-vm.fritz.box or 192.168.0.10)
+  --source <hostname> | <file: *.tar.gz>
+      Source VM to convert to CT (Eg. postgres-vm.fritz.box or 192.168.0.10, source-vm.tar.gz file locally)
   --source-output <path>, --output <path>, -o <path>
       Location of the source VM output (default: /tmp/proxmox-vm-to-ct/<hostname>.tar.gz)
   --target <name>
       Name of the container to create (Eg. postgres-ct)
   --target-config <path>
       Path to target configuration, for an example see default-config.env
-  --cleanup
-      Cleanup the source compressed image after conversion (the *.tar.gz file)
   --default-config
       Default configuration for container (2 CPU, 2GB RAM, 20GB Disk)
   --default-config-containerd, --default-config-docker
