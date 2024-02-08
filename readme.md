@@ -61,7 +61,7 @@ See further [examples](#Examples) below.
 > 
 > Next time you can reuse the above to create more containers by passing in the filename as the source.
 > 
-> Eg. `./proxmox-vm-to-ct.sh  ~/dietpi-first-attempt.tar.gz --target matrix-revolutions ...`> 
+> See examples below. 
 
 ## Example Run
 
