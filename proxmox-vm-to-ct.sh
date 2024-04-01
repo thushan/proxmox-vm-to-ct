@@ -37,6 +37,8 @@ OPT_IGNORE_DIETPI=0
 OPT_PROMPT_PASS=0
 INT_PROMPT_PASS=0
 
+SSH_CONNECTION_TIMEOUT=5
+
 # Used to determine whether to cleanup
 # invalid templates or not
 CT_SUCCESS=0
@@ -525,7 +527,7 @@ function create_vm_snapshot() {
     banner 1
 
     set +e # Temporarily disable to handle SSH woes
-    ssh "$PVE_SOURCE_USER@$PVE_SOURCE" -p "$PVE_SOURCE_PORT" \
+    ssh "$PVE_SOURCE_USER@$PVE_SOURCE" -p "$PVE_SOURCE_PORT" -o ConnectTimeout=$SSH_CONNECTION_TIMEOUT \
         "$(typeset -f vm_ct_prep); $(typeset -f vm_ct_prep_dietpi); $(typeset -f vm_fs_snapshot); $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); vm_ct_prep; vm_fs_snapshot" \
         >"$PVE_SOURCE_OUTPUT"
     ssh_status=$?
@@ -534,7 +536,7 @@ function create_vm_snapshot() {
     cursor_restore
     CT_SCREENP=0
     if [ $ssh_status -ne 0 ]; then
-        fatal "SSH to $PVE_SOURCE_USER@$PVE_SOURCE:$PVE_SOURCE_PORT failed with: $ssh_status"
+        fatal "SSH to $PVE_SOURCE_USER@$PVE_SOURCE:$PVE_SOURCE_PORT failed with status: ${BOLD}$ssh_status${ENDMARKER}"
     fi
     msg_done "$c_status"
 }
@@ -619,11 +621,7 @@ function cleanup () {
     msg_done "$c_status"
 }
 
-function main() {
-    CT_NEXT_ID=$(pvesh get /cluster/nextid)
-    TEMP_DIR=/tmp/proxmox-vm-to-ct
-    TEMP_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10; echo)
-
+function resolve_pve_source() {
     if [[ -f "$PVE_SOURCE" ]]; then
         OPT_SOURCE_TYPE=$OPT_SOURCE_TYPE_FILE
         PVE_SOURCE_OUTPUT=$PVE_SOURCE
@@ -636,13 +634,24 @@ function main() {
             PVE_SOURCE_OUTPUT=$TEMP_DIR/$PVE_SOURCE.tar.gz
         fi
     fi
+}
 
+function resolve_cte_password() {
 
     if [[ "$OPT_PROMPT_PASS" -eq 1 ]]; then
         prompt_password
     else
         CT_PASSWORD=$TEMP_PASS
     fi
+
+}
+function main() {
+    CT_NEXT_ID=$(pvesh get /cluster/nextid)
+    TEMP_DIR=/tmp/proxmox-vm-to-ct
+    TEMP_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10; echo)
+
+    resolve_pve_source
+    resolve_cte_password
 
     # Get the list of storage containers
     mapfile -t PVE_STORAGE_LIST < <(pvesm status -content images | awk -v OFS="\\n" -F " +" 'NR>1 {print $1}')
