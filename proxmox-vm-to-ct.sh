@@ -16,6 +16,8 @@ if [[ "${TRACE-0}" == "1" ]]; then
 fi
 
 PVE_SOURCE=""
+PVE_SOURCE_PORT=22
+PVE_SOURCE_USER=root
 PVE_TARGET=""
 PVE_STORAGE=""
 PVE_SOURCE_OUTPUT=""
@@ -522,7 +524,7 @@ function create_vm_snapshot() {
     tput cup 0 0
     banner 1
 
-    ssh "root@$PVE_SOURCE" \
+    ssh "$PVE_SOURCE_USER@$PVE_SOURCE" -p "$PVE_SOURCE_PORT" \
         "$(typeset -f vm_ct_prep); $(typeset -f vm_ct_prep_dietpi); $(typeset -f vm_fs_snapshot); $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); vm_ct_prep; vm_fs_snapshot" \
         >"$PVE_SOURCE_OUTPUT"
 
@@ -635,6 +637,10 @@ function usage() {
     echo "      Name of the Proxmox Storage container (Eg. local-zfs, local-lvm, etc)"
     echo "  ${CCyan}--source${ENDMARKER} <hostname> | <file: *.tar.gz>"
     echo "      Source VM to convert to CT (Eg. postgres-vm.fritz.box or 192.168.0.10, source-vm.tar.gz file locally)"
+    echo "  ${CCyan}--source-user${ENDMARKER} <username>"
+    echo "      Source VM's SSH username to connect with. (Eg. ${CGreen}root${ENDMARKER}) "
+    echo "  ${CCyan}--source-port${ENDMARKER} <port>"
+    echo "      Source VM's SSH port to connect to. (Eg. ${CGreen}22${ENDMARKER}) "
     echo "  ${CCyan}--source-output${ENDMARKER} <path>, ${CCyan}--output${ENDMARKER} <path>, ${CCyan}-o${ENDMARKER} <path>"
     echo "      Location of the source VM output (default: ${CGreen}/tmp/proxmox-vm-to-ct/<hostname>.tar.gz${ENDMARKER})"
     echo "  ${CCyan}--target${ENDMARKER} <name>"
@@ -665,6 +671,14 @@ while [ "$#" -gt 0 ]; do
         ;;
     --source)
         PVE_SOURCE="$2"
+        shift
+        ;;
+    --source-port)
+        PVE_SOURCE_PORT=$2
+        shift
+        ;;
+    --source-user)
+        PVE_SOURCE_USER=$2
         shift
         ;;
     --storage)
