@@ -4,7 +4,7 @@
 # Author: Thushan Fernando <thushan.fernando@gmail.com>
 # http://github.com/thushan/proxmox-vm-to-ct
 
-VERSION=1.0.0
+VERSION=1.1.0
 
 set -Eeuo pipefail
 set -o nounset
@@ -510,6 +510,31 @@ function get_vm_snapshot() {
     if [[ "$OPT_SOURCE_TYPE" -eq "$OPT_SOURCE_TYPE_SSH" ]]; then
         create_vm_snapshot
     fi
+}
+
+function get_vm_id_from_name() {
+    local vm_name="$1"
+    pvesh get /cluster/resources --type vm --output-format yaml | grep -Ei 'vmid|name' | grep -A1 "$vm_name" | grep 'vmid' | awk -F ':' '{print $2}'
+}
+function get_vm_mac_from_id() {
+    local vm_id="$1"
+    qm config "$vm_id" | grep 'net0:' | awk -F '=' '{print tolower($2)}' | awk -F ',' '{print $1}'
+}
+
+function get_vm_ip_from_mac() {
+    local vm_mac="$1"
+    ip neigh show | grep "$vm_mac" | awk '{print $1}'
+}
+
+function get_vm_ip_from_name() {
+    local vm_name="$1"
+    local vm_id
+    local vm_mac
+
+    vm_id=$(get_vm_id_from_name "$vm_name")
+    vm_mac=$(get_vm_mac_from_id $vm_id)
+
+    get_vm_ip_from_mac "$vm_mac"
 }
 
 function create_vm_snapshot() {
