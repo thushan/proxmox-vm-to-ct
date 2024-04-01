@@ -6,7 +6,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 ![Updated](https://img.shields.io/github/last-commit/thushan/proxmox-vm-to-ct)
-![Version](https://img.shields.io/badge/Version-v1.0.0-blue)
+![Version](https://img.shields.io/badge/Version-v1.1.0-blue)
 ![Proxmox](https://img.shields.io/badge/Proxmox-7.x%20%7C%208.x-orange?logo=proxmox)
 ![DietPi](https://img.shields.io/badge/DietPi-6.x%20%7C%207.x%20%7C%208.x%20%7C%209.x-C1FF00?logo=dietpi)
 
