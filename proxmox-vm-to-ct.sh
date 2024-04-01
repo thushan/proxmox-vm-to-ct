@@ -670,7 +670,7 @@ function main() {
 
 function usage() {
     banner 0
-    echo "Usage: ${CYellow}$0${ENDMARKER} ${CBlue}--source${ENDMARKER} <hostname> ${CBlue}--target${ENDMARKER} <name> ${CBlue}--storage${ENDMARKER} <name> [options]"
+    echo "Usage: ${CYellow}$0${ENDMARKER} ${CBlue}--storage${ENDMARKER} <name> ${CBlue}--source${ENDMARKER} <hostname|file> ${CBlue}--target${ENDMARKER} <name> [options]"
     echo "Options:"
     echo "  ${CCyan}--storage${ENDMARKER} <name>"
     echo "      Name of the Proxmox Storage container (Eg. local-zfs, local-lvm, etc)"
