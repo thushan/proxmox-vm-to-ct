@@ -534,7 +534,7 @@ function create_vm_snapshot() {
     cursor_restore
     CT_SCREENP=0
     if [ $ssh_status -ne 0 ]; then
-        error "SSH to $PVE_SOURCE_USER@$PVE_SOURCE:$PVE_SOURCE_PORT failed with: $exit_status"
+        fatal "SSH to $PVE_SOURCE_USER@$PVE_SOURCE:$PVE_SOURCE_PORT failed with: $ssh_status"
     fi
     msg_done "$c_status"
 }
