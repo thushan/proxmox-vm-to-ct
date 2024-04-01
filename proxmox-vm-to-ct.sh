@@ -512,31 +512,6 @@ function get_vm_snapshot() {
     fi
 }
 
-function get_vm_id_from_name() {
-    local vm_name="$1"
-    pvesh get /cluster/resources --type vm --output-format yaml | grep -Ei 'vmid|name' | grep -A1 "$vm_name" | grep 'vmid' | awk -F ':' '{print $2}'
-}
-function get_vm_mac_from_id() {
-    local vm_id="$1"
-    qm config "$vm_id" | grep 'net0:' | awk -F '=' '{print tolower($2)}' | awk -F ',' '{print $1}'
-}
-
-function get_vm_ip_from_mac() {
-    local vm_mac="$1"
-    ip neigh show | grep "$vm_mac" | awk '{print $1}'
-}
-
-function get_vm_ip_from_name() {
-    local vm_name="$1"
-    local vm_id
-    local vm_mac
-
-    vm_id=$(get_vm_id_from_name "$vm_name")
-    vm_mac=$(get_vm_mac_from_id $vm_id)
-
-    get_vm_ip_from_mac "$vm_mac"
-}
-
 function create_vm_snapshot() {
     local c_status="${CMagenta}SSH Session:${ENDMARKER} ${CBlue}$PVE_SOURCE${ENDMARKER}..."
     
@@ -549,13 +524,18 @@ function create_vm_snapshot() {
     tput cup 0 0
     banner 1
 
+    set +e # Temporarily disable to handle SSH woes
     ssh "$PVE_SOURCE_USER@$PVE_SOURCE" -p "$PVE_SOURCE_PORT" \
         "$(typeset -f vm_ct_prep); $(typeset -f vm_ct_prep_dietpi); $(typeset -f vm_fs_snapshot); $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); vm_ct_prep; vm_fs_snapshot" \
         >"$PVE_SOURCE_OUTPUT"
+    ssh_status=$?
+    set -e # reenable
 
     cursor_restore
     CT_SCREENP=0
-
+    if [ $ssh_status -ne 0 ]; then
+        error "SSH to $PVE_SOURCE_USER@$PVE_SOURCE:$PVE_SOURCE_PORT failed with: $exit_status"
+    fi
     msg_done "$c_status"
 }
 function cursor_save() {
@@ -588,6 +568,31 @@ function ensure_env() {
     msg "$c_status"
     mkdir -p $TEMP_DIR
     msg_done "$c_status"
+}
+
+function get_vm_id_from_name() {
+    local vm_name="$1"
+    pvesh get /cluster/resources --type vm --output-format yaml | grep -Ei 'vmid|name' | grep -A1 "$vm_name" | grep 'vmid' | awk -F ':' '{print $2}'
+}
+function get_vm_mac_from_id() {
+    local vm_id="$1"
+    qm config "$vm_id" | grep 'net0:' | awk -F '=' '{print tolower($2)}' | awk -F ',' '{print $1}'
+}
+
+function get_vm_ip_from_mac() {
+    local vm_mac="$1"
+    ip neigh show | grep "$vm_mac" | awk '{print $1}'
+}
+
+function get_vm_ip_from_name() {
+    local vm_name="$1"
+    local vm_id
+    local vm_mac
+
+    vm_id=$(get_vm_id_from_name "$vm_name")
+    vm_mac=$(get_vm_mac_from_id $vm_id)
+
+    get_vm_ip_from_mac "$vm_mac"
 }
 
 function cleanup () {
