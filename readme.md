@@ -31,7 +31,7 @@ wget https://raw.githubusercontent.com/thushan/proxmox-vm-to-ct/main/proxmox-vm-
 chmod +x ./proxmox-vm-to-ct.sh
 ```
 
-Once downloaded, to create an container for the vm with the hostname '`the-matrix`' named '`matrix-reloaded`' with the [default CT configuration](#default-configuration) on your pve storage `local-zfs`:
+Once downloaded, to create an container for the vm with the hostname `the-matrix` named `matrix-reloaded` with the [default CT configuration](#default-configuration) on your pve storage `local-zfs`:
 
 ```shell
 ./proxmox-vm-to-ct.sh --source the-matrix \
@@ -49,7 +49,7 @@ If your VM has docker, podman or containerd installed, use the `--default-config
                       --default-config-containerd
 ```
 
-You can use the fully qualified host name (Eg. `the-matrix` or `the-matrix.fritz.box`) or the IP (Eg. `192.168.0.101`) of the source VM you want to convert - we SSH in, to get the files.
+You can use the fully qualified host name (Eg. `the-matrix` or `the-matrix.fritz.box`) or the IP (Eg. `192.168.0.101`) of the source VM you want to convert. Make sure the source VM is running as we SSH in.
 
 See further [examples](#Examples) below.
 
