@@ -4,7 +4,7 @@
 # Author: Thushan Fernando <thushan.fernando@gmail.com>
 # http://github.com/thushan/proxmox-vm-to-ct
 
-VERSION=1.0.0
+VERSION=1.1.0
 
 set -Eeuo pipefail
 set -o nounset
@@ -16,6 +16,8 @@ if [[ "${TRACE-0}" == "1" ]]; then
 fi
 
 PVE_SOURCE=""
+PVE_SOURCE_PORT=22
+PVE_SOURCE_USER=root
 PVE_TARGET=""
 PVE_STORAGE=""
 PVE_SOURCE_OUTPUT=""
@@ -34,6 +36,8 @@ OPT_IGNORE_PREP=0
 OPT_IGNORE_DIETPI=0
 OPT_PROMPT_PASS=0
 INT_PROMPT_PASS=0
+
+SSH_CONNECTION_TIMEOUT=5
 
 # Used to determine whether to cleanup
 # invalid templates or not
@@ -522,13 +526,18 @@ function create_vm_snapshot() {
     tput cup 0 0
     banner 1
 
-    ssh "root@$PVE_SOURCE" \
+    set +e # Temporarily disable to handle SSH woes
+    ssh "$PVE_SOURCE_USER@$PVE_SOURCE" -p "$PVE_SOURCE_PORT" -o ConnectTimeout=$SSH_CONNECTION_TIMEOUT \
         "$(typeset -f vm_ct_prep); $(typeset -f vm_ct_prep_dietpi); $(typeset -f vm_fs_snapshot); $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); vm_ct_prep; vm_fs_snapshot" \
         >"$PVE_SOURCE_OUTPUT"
+    ssh_status=$?
+    set -e # reenable
 
     cursor_restore
     CT_SCREENP=0
-
+    if [ $ssh_status -ne 0 ]; then
+        fatal "SSH to $PVE_SOURCE_USER@$PVE_SOURCE:$PVE_SOURCE_PORT failed with status: ${BOLD}$ssh_status${ENDMARKER}"
+    fi
     msg_done "$c_status"
 }
 function cursor_save() {
@@ -563,6 +572,31 @@ function ensure_env() {
     msg_done "$c_status"
 }
 
+function get_vm_id_from_name() {
+    local vm_name="$1"
+    pvesh get /cluster/resources --type vm --output-format yaml | grep -Ei 'vmid|name' | grep -A1 "$vm_name" | grep 'vmid' | awk -F ':' '{print $2}'
+}
+function get_vm_mac_from_id() {
+    local vm_id="$1"
+    qm config "$vm_id" | grep 'net0:' | awk -F '=' '{print tolower($2)}' | awk -F ',' '{print $1}'
+}
+
+function get_vm_ip_from_mac() {
+    local vm_mac="$1"
+    ip neigh show | grep "$vm_mac" | awk '{print $1}'
+}
+
+function get_vm_ip_from_name() {
+    local vm_name="$1"
+    local vm_id
+    local vm_mac
+
+    vm_id=$(get_vm_id_from_name "$vm_name")
+    vm_mac=$(get_vm_mac_from_id $vm_id)
+
+    get_vm_ip_from_mac "$vm_mac"
+}
+
 function cleanup () {
     # https://www.youtube.com/watch?v=4F4qzPbcFiA
     local c_status="Cleaning up..."
@@ -587,11 +621,7 @@ function cleanup () {
     msg_done "$c_status"
 }
 
-function main() {
-    CT_NEXT_ID=$(pvesh get /cluster/nextid)
-    TEMP_DIR=/tmp/proxmox-vm-to-ct
-    TEMP_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10; echo)
-
+function resolve_pve_source() {
     if [[ -f "$PVE_SOURCE" ]]; then
         OPT_SOURCE_TYPE=$OPT_SOURCE_TYPE_FILE
         PVE_SOURCE_OUTPUT=$PVE_SOURCE
@@ -604,13 +634,24 @@ function main() {
             PVE_SOURCE_OUTPUT=$TEMP_DIR/$PVE_SOURCE.tar.gz
         fi
     fi
+}
 
+function resolve_cte_password() {
 
     if [[ "$OPT_PROMPT_PASS" -eq 1 ]]; then
         prompt_password
     else
         CT_PASSWORD=$TEMP_PASS
     fi
+
+}
+function main() {
+    CT_NEXT_ID=$(pvesh get /cluster/nextid)
+    TEMP_DIR=/tmp/proxmox-vm-to-ct
+    TEMP_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10; echo)
+
+    resolve_pve_source
+    resolve_cte_password
 
     # Get the list of storage containers
     mapfile -t PVE_STORAGE_LIST < <(pvesm status -content images | awk -v OFS="\\n" -F " +" 'NR>1 {print $1}')
@@ -629,12 +670,16 @@ function main() {
 
 function usage() {
     banner 0
-    echo "Usage: ${CYellow}$0${ENDMARKER} ${CBlue}--source${ENDMARKER} <hostname> ${CBlue}--target${ENDMARKER} <name> ${CBlue}--storage${ENDMARKER} <name> [options]"
+    echo "Usage: ${CYellow}$0${ENDMARKER} ${CBlue}--storage${ENDMARKER} <name> ${CBlue}--source${ENDMARKER} <hostname|file> ${CBlue}--target${ENDMARKER} <name> [options]"
     echo "Options:"
     echo "  ${CCyan}--storage${ENDMARKER} <name>"
     echo "      Name of the Proxmox Storage container (Eg. local-zfs, local-lvm, etc)"
     echo "  ${CCyan}--source${ENDMARKER} <hostname> | <file: *.tar.gz>"
     echo "      Source VM to convert to CT (Eg. postgres-vm.fritz.box or 192.168.0.10, source-vm.tar.gz file locally)"
+    echo "  ${CCyan}--source-user${ENDMARKER} <username>"
+    echo "      Source VM's SSH username to connect with. (Eg. ${CGreen}root${ENDMARKER}) "
+    echo "  ${CCyan}--source-port${ENDMARKER} <port>"
+    echo "      Source VM's SSH port to connect to. (Eg. ${CGreen}22${ENDMARKER}) "
     echo "  ${CCyan}--source-output${ENDMARKER} <path>, ${CCyan}--output${ENDMARKER} <path>, ${CCyan}-o${ENDMARKER} <path>"
     echo "      Location of the source VM output (default: ${CGreen}/tmp/proxmox-vm-to-ct/<hostname>.tar.gz${ENDMARKER})"
     echo "  ${CCyan}--target${ENDMARKER} <name>"
@@ -665,6 +710,14 @@ while [ "$#" -gt 0 ]; do
         ;;
     --source)
         PVE_SOURCE="$2"
+        shift
+        ;;
+    --source-port)
+        PVE_SOURCE_PORT=$2
+        shift
+        ;;
+    --source-user)
+        PVE_SOURCE_USER=$2
         shift
         ;;
     --storage)

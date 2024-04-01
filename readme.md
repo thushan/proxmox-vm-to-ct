@@ -31,7 +31,7 @@ wget https://raw.githubusercontent.com/thushan/proxmox-vm-to-ct/main/proxmox-vm-
 chmod +x ./proxmox-vm-to-ct.sh
 ```
 
-Once downloaded, to create an container for the vm '`the-matrix`' named '`matrix-reloaded`' with the [default CT configuration](#default-configuration) on your pve storage `local-zfs`:
+Once downloaded, to create an container for the vm with the hostname '`the-matrix`' named '`matrix-reloaded`' with the [default CT configuration](#default-configuration) on your pve storage `local-zfs`:
 
 ```shell
 ./proxmox-vm-to-ct.sh --source the-matrix \
@@ -48,6 +48,8 @@ If your VM has docker, podman or containerd installed, use the `--default-config
                       --storage local-zfs \
                       --default-config-containerd
 ```
+
+You can use the fully qualified host name (Eg. `the-matrix` or `the-matrix.fritz.box`) or the IP (Eg. `192.168.0.101`) of the source VM you want to convert - we SSH in, to get the files.
 
 See further [examples](#Examples) below.
 
@@ -237,13 +239,17 @@ See what's included with [default containerd](#default-configuration---container
 
 ## Usage
 ```
-Usage: proxmox-vm-to-ct.sh --source <hostname> --target <name> --storage <name> [options]
+Usage: proxmox-vm-to-ct.sh --storage <name> --source <hostname|file> --target <name> [options]
 
 Options:
   --storage <name>
       Name of the Proxmox Storage container (Eg. local-zfs, local-lvm, etc)
   --source <hostname> | <file: *.tar.gz>
       Source VM to convert to CT (Eg. postgres-vm.fritz.box or 192.168.0.10, source-vm.tar.gz file locally)
+  --source-user <username>
+      Source VM's SSH username to connect with. (Eg. root)
+  --source-port <port>
+      Source VM's SSH port to connect to. (Eg. 22)
   --source-output <path>, --output <path>, -o <path>
       Location of the source VM output (default: /tmp/proxmox-vm-to-ct/<hostname>.tar.gz)
   --target <name>
