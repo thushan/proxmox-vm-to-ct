@@ -343,7 +343,7 @@ For VM's that have a `containerd` instance (or Docker, Podman etc) we need a few
 The script prep's a DietPi (6.x | 7.x | 8.x or 9.x release) by making the following changes:
 
 * Sets the `.dietpi_hw_model_identifier` from `21` (`x86_64`) to `75` (`container`) as per [documentation](https://github.com/MichaIng/DietPi/blob/master/dietpi/func/dietpi-obtain_hw_model#L27)
-* Sets up first-login install sequence (even if you've done it already) so each container gets updates and updating of passwords instead of any randomly generated ones from the script by modifying `/boot/dietpi/.installstage`.
+* Sets up first-login install sequence (even if you've done it already) so each container gets updates and updating of passwords instead of any randomly generated ones from the script by modifying `/boot/dietpi/.install_stage`.
 * Stops DietPi-CloudShell which is CloudHell when you reboot as a container in Proxmox otherwise.
 * Adds the purging of `grub-pc tiny-initramfs linux-image-amd64` packages which aren't required as a container - see [Michalng's comment](https://dietpi.com/blog/?p=2642#comment-5808).
 
