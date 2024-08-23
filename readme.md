@@ -238,6 +238,11 @@ You can create a privilleged container with additional features required by usin
 See what's included with [default containerd](#default-configuration---containerd--docker--podman) for more information.
 
 ## Usage
+
+> \[!TIP]
+>
+> You can install completions by running the script with `--install-completions` flag to make things easier.
+
 ```
 Usage: proxmox-vm-to-ct.sh --storage <name> --source <hostname|file> --target <name> [options]
 
@@ -266,6 +271,8 @@ Options:
       Ignore DietPi specific modifications on the VM before snapshotting. (ignored with --ignore-prep)
   --prompt-password
       Prompt for a password for the container, temporary one generated & displayed otherwise
+  --install-completion
+    Installs completions for your shell to make life easier
   --help
       Display this help message
 ```

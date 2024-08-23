@@ -698,8 +698,33 @@ function usage() {
     echo "      Ignore Source Archive verification step."
     echo "  ${CCyan}--prompt-password${ENDMARKER}"
     echo "      Prompt for a password for the container, temporary one generated & displayed otherwise"
+    echo "  ${CCyan}--install-completion${ENDMARKER}"
+    echo "      Installs completions for your shell to make life easier"
     echo "  ${CCyan}--help${ENDMARKER}"
     echo "      Display this help message"
+}
+
+install_completions() {
+    local c_status="Installing Completions..."
+    local cur prev opts
+    msg "$c_status"
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    opts="--storage --source --source-user --source-port --source-output --output -o --target --target-config --default-config --default-config-containerd --default-config-docker --ignore-prep --ignore-dietpi --ignore-source-verify --prompt-password --help"
+
+    case "${prev}" in
+        --storage|--source|--source-user|--source-port|--source-output|--output|-o|--target|--target-config)
+            COMPREPLY=( $(compgen -W "$(ls)" -- ${cur}) )            
+            msg_done "$c_status"
+            return 0
+            ;;
+        *)
+            COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+            msg_done "$c_status"
+            return 0
+            ;;
+    esac
 }
 
 while [ "$#" -gt 0 ]; do
@@ -753,6 +778,10 @@ while [ "$#" -gt 0 ]; do
         ;;
     --prompt-password)
         OPT_PROMPT_PASS=1
+        ;;
+    --install-completion)
+        complete -F install_completions "$(basename "$0")"
+        exit 0
         ;;
     --)
         break
