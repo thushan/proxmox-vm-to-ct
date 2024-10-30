@@ -473,7 +473,7 @@ function created_container_print_opts() {
 
 function color_cat() {
     if [ -f "$1" ]; then
-        cat "$1" | sed "s/.*/\x1b[35m&\x1b[0m/"
+        cat "$1" | sed "s/.*/\x1b[37m&\x1b[0m/"
     fi
 }
 function vm_ct_prep() {
@@ -549,7 +549,7 @@ function create_vm_snapshot() {
     tput cup 0 0
     banner 1
     
-    ssh_err_out="$PVE_SOURCE-ssh.err"
+    ssh_err_out="$TEMP_DIR/$PVE_SOURCE-ssh.err"
     ssh_command=(ssh -p "$PVE_SOURCE_PORT" -o "ConnectTimeout=$SSH_CONNECTION_TIMEOUT" "$PVE_SOURCE_USER@$PVE_SOURCE")
     ssh_command+=(
         "$(typeset -f vm_ct_prep); $(typeset -f vm_ct_prep_dietpi); $(typeset -f vm_fs_snapshot); $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); vm_ct_prep; vm_fs_snapshot"
