@@ -557,9 +557,9 @@ function create_vm_snapshot() {
 
     set +e # Temporarily disable to handle SSH woes
     if [ -n "$PVE_SSH_PASSWORD" ]; then
-        sshpass -p "$PVE_SSH_PASSWORD" "${ssh_command[@]}" >"$PVE_SOURCE_OUTPUT" 2> "$ssh_err_out"
+        sshpass -p "$PVE_SSH_PASSWORD" "${ssh_command[@]}" 2> "$ssh_err_out" | tee "$PVE_SOURCE_OUTPUT"
     else
-        "${ssh_command[@]}" >"$PVE_SOURCE_OUTPUT" 2> "$ssh_err_out"
+        "${ssh_command[@]}" 2> "$ssh_err_out" | tee "$PVE_SOURCE_OUTPUT"
     fi
     ssh_status=$?
     set -e # reenable
