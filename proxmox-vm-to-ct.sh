@@ -237,7 +237,7 @@ function check_pve() {
 }
 function check_deps() {
     if [[ ! -x "$(command -v sshpass)" ]]; then
-        check_warn "No '${CBlue}sshpass${ENDMARKER}' detected. (${CCyan}sudo apt install sshpass${ENDMARKER})"
+        check_warn "No '${CBlue}sshpass${ENDMARKER}' detected. (Try: ${CCyan}sudo apt install sshpass${ENDMARKER})"
         INT_HOST_DEP_SSHPASS=0
     else
         INT_HOST_DEP_SSHPASS=1
@@ -268,12 +268,11 @@ function check_proxmox_vm_source() {
             check_warn "Verifying source image skipped"
         fi
     fi
-    check_info "Checking SSH Port ${CBlue}$PVE_SOURCE_PORT${ENDMARKER}..."
     if ! [[ "$PVE_SOURCE_PORT" =~ ^[0-9]+$ ]] || [ "$PVE_SOURCE_PORT" -lt 1 ] || [ "$PVE_SOURCE_PORT" -gt 65535 ]; then
-        check_error "Invalid SSH Port"
+        check_error "Invalid SSH Port number specified ${CRed}$PVE_SOURCE_PORT${ENDMARKER}..."
         fatal "Please set an SSH Port number between 1 and 65535"
     else
-        check_ok "Verified source image ${CBlue}$(basename ${PVE_SOURCE})${ENDMARKER}"
+        check_ok "SSH Port ${CBlue}$PVE_SOURCE_PORT${ENDMARKER} valid."
     fi
 }
 function check_args() {
@@ -472,6 +471,11 @@ function created_container_print_opts() {
     msg4 "Start it up with: ${CGreen}pct start $CT_NEXT_ID${ENDMARKER}"
 }
 
+function color_cat() {
+    if [ -f "$1" ]; then
+        cat "$1" | sed "s/.*/\x1b[35m&\x1b[0m/"
+    fi
+}
 function vm_ct_prep() {
     if [[ "$OPT_IGNORE_PREP" -eq 1 ]]; then
         return
@@ -545,7 +549,7 @@ function create_vm_snapshot() {
     tput cup 0 0
     banner 1
     
-    ssh_err_out="$PVE_SOURCE_OUTPUT-ssh.err"
+    ssh_err_out="$PVE_SOURCE-ssh.err"
     ssh_command=(ssh -p "$PVE_SOURCE_PORT" -o "ConnectTimeout=$SSH_CONNECTION_TIMEOUT" "$PVE_SOURCE_USER@$PVE_SOURCE")
     ssh_command+=(
         "$(typeset -f vm_ct_prep); $(typeset -f vm_ct_prep_dietpi); $(typeset -f vm_fs_snapshot); $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); vm_ct_prep; vm_fs_snapshot"
@@ -564,9 +568,9 @@ function create_vm_snapshot() {
     CT_SCREENP=0
     
     if [ $ssh_status -ne 0 ]; then
-        error "SSH to $PVE_SOURCE_USER@$PVE_SOURCE:$PVE_SOURCE_PORT failed with status: ${BOLD}$ssh_status${ENDMARKER}"
-        error "Output saved at '$ssh_err_out':"
-        cat "$ssh_err_out"
+        error "SSH to ${CYellow}$PVE_SOURCE_USER@$PVE_SOURCE:$PVE_SOURCE_PORT${ENDMARKER} failed with status: ${BOLD}$ssh_status${ENDMARKER}"
+        error "Output saved to '${CBlue}$ssh_err_out${ENDMARKER}':"
+        color_cat "$ssh_err_out"
         fatal "Aborting."
     fi
     msg_done "$c_status"
