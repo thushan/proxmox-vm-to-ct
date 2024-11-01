@@ -4,7 +4,7 @@
 # Author: Thushan Fernando <thushan.fernando@gmail.com>
 # http://github.com/thushan/proxmox-vm-to-ct
 
-VERSION=1.1.0
+VERSION=1.1.1
 
 set -Eeuo pipefail
 set -o nounset
@@ -22,6 +22,7 @@ PVE_TARGET=""
 PVE_STORAGE=""
 PVE_SOURCE_OUTPUT=""
 PVE_DESCRIPTION="Converted from VM to CT via <a href="http://www.github.com/thushan/proxmox-vm-to-ct">proxmox-vm-to-ct</a>."
+PVE_SSH_PASSWORD=""
 
 OPT_TARGET_CONFIG=""
 
@@ -36,6 +37,8 @@ OPT_IGNORE_PREP=0
 OPT_IGNORE_DIETPI=0
 OPT_PROMPT_PASS=0
 INT_PROMPT_PASS=0
+
+INT_HOST_DEP_SSHPASS=0
 
 SSH_CONNECTION_TIMEOUT=5
 
@@ -110,10 +113,10 @@ function banner() {
         FOOTER=""
     fi
 
-    BANNER=" ${CWhite} ___             ${CWhite}               ${CDietPi} ___  _     _   ___ _ 
+    BANNER=" ${CWhite} ___             ${CWhite}               ${CDietPi} ___  _     _   ___ _
  ${CWhite}| _ \_ _ ___${CProxmox}__ __${CWhite}_ __  ___${CProxmox}__ __ ${CDietPi}|   \(_)___| |_| _ (_)
  ${CWhite}|  _/ '_/ _ ${CProxmox}\ \ /${CWhite} '  \/ _ ${CProxmox}\ \ / ${CDietPi}| |) | / -_)  _|  _/ |
- ${CWhite}| | |_| \___${CProxmox}/_\_\\${CWhite}_|_|_\___${CProxmox}/_\_\ ${CDietPi}|___/|_\___|\__|_| |_| 
+ ${CWhite}| | |_| \___${CProxmox}/_\_\\${CWhite}_|_|_\___${CProxmox}/_\_\ ${CDietPi}|___/|_\___|\__|_| |_|
  ${CWhite}|_|$SUB_HEADING
 $FOOTER"
     printf "$BANNER"
@@ -209,7 +212,7 @@ function check_container_settings() {
 }
 
 function check_proxmox_container() {
-    local containers=$(pct list | awk 'NR>1 {print $NF}')    
+    local containers=$(pct list | awk 'NR>1 {print $NF}')
     if [[ ${containers[*]} =~ $PVE_TARGET ]]; then
         check_error "Container ${CBlue}$PVE_TARGET${ENDMARKER} already exists"
         fatal "Please specify a different container name"
@@ -232,6 +235,14 @@ function check_pve() {
         fatal "Script only supports Proxmox VE."
     fi
 }
+function check_deps() {
+    if [[ ! -x "$(command -v sshpass)" ]]; then
+        check_warn "No '${CBlue}sshpass${ENDMARKER}' detected. (Try: ${CCyan}sudo apt install sshpass${ENDMARKER})"
+        INT_HOST_DEP_SSHPASS=0
+    else
+        INT_HOST_DEP_SSHPASS=1
+    fi
+}
 function check_arch() {
     local arch=$(uname -m)
     if [[ $arch != "x86_64" ]]; then
@@ -244,7 +255,7 @@ function check_arch() {
 function check_proxmox_vm_source() {
 
     if [[ -f "$PVE_SOURCE" ]]; then
-        # check for a valid *.tar.gz        
+        # check for a valid *.tar.gz
         check_info "Using source image ${CBlue}$(basename ${PVE_SOURCE})${ENDMARKER}, checking integrity..."
         if [[ "$OPT_IGNORE_SOURCE_VERIFY" -eq 0 ]]; then
             if gzip -t "$PVE_SOURCE" &>/dev/null; then
@@ -256,6 +267,12 @@ function check_proxmox_vm_source() {
         else
             check_warn "Verifying source image skipped"
         fi
+    fi
+    if ! [[ "$PVE_SOURCE_PORT" =~ ^[0-9]+$ ]] || [ "$PVE_SOURCE_PORT" -lt 1 ] || [ "$PVE_SOURCE_PORT" -gt 65535 ]; then
+        check_error "Invalid SSH Port number specified ${CRed}$PVE_SOURCE_PORT${ENDMARKER}..."
+        fatal "Please set an SSH Port number between 1 and 65535"
+    else
+        check_ok "SSH Port ${CBlue}$PVE_SOURCE_PORT${ENDMARKER} valid."
     fi
 }
 function check_args() {
@@ -290,7 +307,7 @@ function create_container() {
     # https://pve.proxmox.com/pve-docs/pct.1.html
 
     local c_status="Creating Container..."
-    
+
     msg "$c_status"
     pct create $CT_NEXT_ID "$PVE_SOURCE_OUTPUT" \
         --description "$PVE_DESCRIPTION" \
@@ -315,17 +332,17 @@ function init_ct_config() {
 
     # If we're here, we know this exists now
     if [[ -n "$OPT_TARGET_CONFIG" ]]; then
-        load_ct_configuration "$OPT_TARGET_CONFIG"        
+        load_ct_configuration "$OPT_TARGET_CONFIG"
     fi
 
 }
 
-function map_ct_to_defaults() {    
+function map_ct_to_defaults() {
 
     # They didn't specify a default, so let's not load any
     if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_NONE ]]; then
         return
-    fi 
+    fi
 
     # Set base defaults
     CT_CPU=$CT_DEFAULT_CPU
@@ -337,7 +354,7 @@ function map_ct_to_defaults() {
     CT_ONBOOT=$CT_DEFAULT_ONBOOT
     CT_ARCH=$CT_DEFAULT_ARCH
     CT_OSTYPE=$CT_DEFAULT_OSTYPE
-    
+
     if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_CONTAINERD ]]; then
         CT_UNPRIVILEGED=$CT_DEFAULT_DOCKER_UNPRIVILEGED
         CT_FEATURES=$CT_DEFAULT_DOCKER_FEATURES
@@ -345,7 +362,7 @@ function map_ct_to_defaults() {
 }
 function load_ct_configuration()
 {
-    local config="$1"    
+    local config="$1"
     local c_status="Loading Configuration..."
 
     msg "$c_status"
@@ -371,7 +388,7 @@ function print_opts() {
     local c_status="Gathering options..."
     local CT_SECURE_PASSWORD="**********"
     local CT_DEFAULT_CONFIG_TYPE=""
-    
+
     if [[ "$OPT_PROMPT_PASS" -eq 0 ]] && [[ "$INT_PROMPT_PASS" -eq 0 ]]; then
         CT_SECURE_PASSWORD=$CT_PASSWORD
     fi
@@ -412,6 +429,7 @@ function validate_env() {
     msg "$c_status"
     check_sudo
     check_arch
+    check_deps
     check_shell
     check_proxmox
     check_proxmox_version
@@ -425,7 +443,7 @@ function validate_env() {
 function created_container_verify() {
     local c_status="Checking Container ${CBlue}$PVE_TARGET${ENDMARKER}..."
     msg "$c_status"
-    local containers=$(pct list | awk 'NR>1 {print $NF}')    
+    local containers=$(pct list | awk 'NR>1 {print $NF}')
     if [[ ${containers[*]} =~ $PVE_TARGET ]]; then
         check_ok "Container ${CBlue}$PVE_TARGET${ENDMARKER} created :)"
         CT_SUCCESS=1
@@ -437,7 +455,7 @@ function created_container_verify() {
 }
 function created_container_print_opts() {
     local CT_SECURE_PASSWORD="¯\_(ツ)_/¯"
-    
+
     if [[ "$OPT_PROMPT_PASS" -eq 0 ]] && [[ "$INT_PROMPT_PASS" -eq 0 ]]; then
         CT_SECURE_PASSWORD=$CT_PASSWORD
     fi
@@ -453,6 +471,11 @@ function created_container_print_opts() {
     msg4 "Start it up with: ${CGreen}pct start $CT_NEXT_ID${ENDMARKER}"
 }
 
+function color_cat() {
+    if [ -f "$1" ]; then
+        cat "$1" | sed "s/.*/\x1b[37m&\x1b[0m/"
+    fi
+}
 function vm_ct_prep() {
     if [[ "$OPT_IGNORE_PREP" -eq 1 ]]; then
         return
@@ -467,7 +490,7 @@ function vm_ct_prep_dietpi() {
     if [[ "$OPT_IGNORE_DIETPI" -eq 1 || ! -f "$dietpi_version" ]]; then
         return
     fi
-    
+
     # Tell DietPi we're in a container
     # src: https://github.com/MichaIng/DietPi/blob/master/dietpi/func/dietpi-obtain_hw_model#L27
     echo 75 > /etc/.dietpi_hw_model_identifier
@@ -495,7 +518,7 @@ function vm_ct_prep_dietpi() {
 
 function vm_fs_snapshot() {
     # credit https://github.com/my5t3ry/machine-to-proxmox-lxc-ct-converter/blob/master/convert.sh#L53
-    tar -czvvf - -C / \
+    tar -czvvmf - -C / \
         --exclude="sys" \
         --exclude="dev" \
         --exclude="run" \
@@ -516,27 +539,60 @@ function get_vm_snapshot() {
 
 function create_vm_snapshot() {
     local c_status="${CMagenta}SSH Session:${ENDMARKER} ${CBlue}$PVE_SOURCE${ENDMARKER}..."
-    
+
     msg "$c_status"
 
     cursor_save
     CT_SCREENP=1
-    
+
     tput clear
     tput cup 0 0
     banner 1
 
+    ssh_err_out="$TEMP_DIR/$PVE_SOURCE-ssh.err"
+    ssh_tmp_out="$TEMP_DIR/$PVE_SOURCE-ssh.tmp"
+    ssh_command=(ssh -p "$PVE_SOURCE_PORT" -o "ConnectTimeout=$SSH_CONNECTION_TIMEOUT" "$PVE_SOURCE_USER@$PVE_SOURCE")
+    ssh_command+=(
+        "$(typeset -f vm_ct_prep); $(typeset -f vm_ct_prep_dietpi); $(typeset -f vm_fs_snapshot); $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); vm_ct_prep; vm_fs_snapshot"
+    )
+
+    # Clear previous error output
+    > "$ssh_err_out"
+
     set +e # Temporarily disable to handle SSH woes
-    ssh "$PVE_SOURCE_USER@$PVE_SOURCE" -p "$PVE_SOURCE_PORT" -o ConnectTimeout=$SSH_CONNECTION_TIMEOUT \
-        "$(typeset -f vm_ct_prep); $(typeset -f vm_ct_prep_dietpi); $(typeset -f vm_fs_snapshot); $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); vm_ct_prep; vm_fs_snapshot" \
-        >"$PVE_SOURCE_OUTPUT"
+    if [ -n "$PVE_SSH_PASSWORD" ]; then
+        SSHPASS="$PVE_SSH_PASSWORD" sshpass -e "${ssh_command[@]}" 2> >(tee "$ssh_err_out" >&2) > "$ssh_tmp_out" &
+    else
+        "${ssh_command[@]}" 2> >(tee "$ssh_err_out" >&2) > "$ssh_tmp_out" &
+    fi
+    ssh_pid=$!
+
+    # This is to be able to see the filenames in realtime
+    tail -f "$ssh_err_out" | sed -u 's/^.*\r//; /^\.\/$/d; s/^\.\//./' &
+    tail_pid=$!
+
+    # Wait for SSH to complete
+    wait $ssh_pid
     ssh_status=$?
+
+    # Stop the tail process
+    kill $tail_pid 2>/dev/null
+    wait $tail_pid 2>/dev/null
+
     set -e # reenable
 
     cursor_restore
     CT_SCREENP=0
+
     if [ $ssh_status -ne 0 ]; then
-        fatal "SSH to $PVE_SOURCE_USER@$PVE_SOURCE:$PVE_SOURCE_PORT failed with status: ${BOLD}$ssh_status${ENDMARKER}"
+        error "SSH to ${CYellow}$PVE_SOURCE_USER@$PVE_SOURCE:$PVE_SOURCE_PORT${ENDMARKER} failed with status: ${BOLD}$ssh_status${ENDMARKER}"
+        error "Error output saved to '${CBlue}$ssh_err_out${ENDMARKER}':"
+        color_cat "$ssh_err_out"
+        rm -f "$ssh_tmp_out"
+        fatal "Aborting."
+    else
+        # Only move the file if SSH was successful
+        mv "$ssh_tmp_out" "$PVE_SOURCE_OUTPUT"
     fi
     msg_done "$c_status"
 }
@@ -550,8 +606,8 @@ function cursor_restore() {
     tput csr 0 $(($LINES - 1))
     tput rc
 }
-function prompt_password() {    
-    
+function prompt_password() {
+
     if PROMPT_PASS=$(whiptail --passwordbox "Enter a Password for '$PVE_TARGET'. \n(leave empty for a random one)" --title "Choose a strong password" 10 50 --cancel-button Exit 3>&1 1>&2 2>&3); then
         if [ -z "${PROMPT_PASS}" ]; then
             CT_PASSWORD=$TEMP_PASS
@@ -564,7 +620,22 @@ function prompt_password() {
         fatal-script
     fi
 }
-
+function prompt_ssh_password() {
+    # Dependency check first
+    if [[ "$INT_HOST_DEP_SSHPASS" -eq 0 ]]; then
+        PVE_SSH_PASSWORD=""
+        return
+    fi
+    if PROMPT_SSH_PASS=$(whiptail --passwordbox "Enter the password for '$PVE_SOURCE_USER@$PVE_SOURCE'. \n(leave empty for a prompt from SSH later)" --title "Source PVE SSH Credentials" 10 50 --cancel-button Exit 3>&1 1>&2 2>&3); then
+        if [ -z "${PROMPT_SSH_PASS}" ]; then
+            PVE_SSH_PASSWORD=""
+        else
+            PVE_SSH_PASSWORD=$PROMPT_SSH_PASS
+        fi
+    else
+        fatal-script
+    fi
+}
 function ensure_env() {
     local c_status="Creating environment..."
     msg "$c_status"
@@ -614,8 +685,8 @@ function cleanup () {
     # Reset screen & cursor position
     if [[ "$CT_SCREENP" -eq 1 ]]; then
         cursor_restore
-    fi 
-    
+    fi
+
     msg "$c_status"
     check_ok "Leaving  ${CBlue}$source_path${ENDMARKER} ($template_size_before)"
     msg_done "$c_status"
@@ -665,7 +736,7 @@ function main() {
     create_container
     created_container_verify
     created_container_print_opts
-    # cleanup is called via trap, so no need to call it here    
+    # cleanup is called via trap, so no need to call it here
 }
 
 function usage() {
