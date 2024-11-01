@@ -4,7 +4,7 @@
 # Author: Thushan Fernando <thushan.fernando@gmail.com>
 # http://github.com/thushan/proxmox-vm-to-ct
 
-VERSION=1.1.0
+VERSION=1.1.1
 
 set -Eeuo pipefail
 set -o nounset
@@ -113,10 +113,10 @@ function banner() {
         FOOTER=""
     fi
 
-    BANNER=" ${CWhite} ___             ${CWhite}               ${CDietPi} ___  _     _   ___ _ 
+    BANNER=" ${CWhite} ___             ${CWhite}               ${CDietPi} ___  _     _   ___ _
  ${CWhite}| _ \_ _ ___${CProxmox}__ __${CWhite}_ __  ___${CProxmox}__ __ ${CDietPi}|   \(_)___| |_| _ (_)
  ${CWhite}|  _/ '_/ _ ${CProxmox}\ \ /${CWhite} '  \/ _ ${CProxmox}\ \ / ${CDietPi}| |) | / -_)  _|  _/ |
- ${CWhite}| | |_| \___${CProxmox}/_\_\\${CWhite}_|_|_\___${CProxmox}/_\_\ ${CDietPi}|___/|_\___|\__|_| |_| 
+ ${CWhite}| | |_| \___${CProxmox}/_\_\\${CWhite}_|_|_\___${CProxmox}/_\_\ ${CDietPi}|___/|_\___|\__|_| |_|
  ${CWhite}|_|$SUB_HEADING
 $FOOTER"
     printf "$BANNER"
@@ -212,7 +212,7 @@ function check_container_settings() {
 }
 
 function check_proxmox_container() {
-    local containers=$(pct list | awk 'NR>1 {print $NF}')    
+    local containers=$(pct list | awk 'NR>1 {print $NF}')
     if [[ ${containers[*]} =~ $PVE_TARGET ]]; then
         check_error "Container ${CBlue}$PVE_TARGET${ENDMARKER} already exists"
         fatal "Please specify a different container name"
@@ -255,7 +255,7 @@ function check_arch() {
 function check_proxmox_vm_source() {
 
     if [[ -f "$PVE_SOURCE" ]]; then
-        # check for a valid *.tar.gz        
+        # check for a valid *.tar.gz
         check_info "Using source image ${CBlue}$(basename ${PVE_SOURCE})${ENDMARKER}, checking integrity..."
         if [[ "$OPT_IGNORE_SOURCE_VERIFY" -eq 0 ]]; then
             if gzip -t "$PVE_SOURCE" &>/dev/null; then
@@ -307,7 +307,7 @@ function create_container() {
     # https://pve.proxmox.com/pve-docs/pct.1.html
 
     local c_status="Creating Container..."
-    
+
     msg "$c_status"
     pct create $CT_NEXT_ID "$PVE_SOURCE_OUTPUT" \
         --description "$PVE_DESCRIPTION" \
@@ -332,17 +332,17 @@ function init_ct_config() {
 
     # If we're here, we know this exists now
     if [[ -n "$OPT_TARGET_CONFIG" ]]; then
-        load_ct_configuration "$OPT_TARGET_CONFIG"        
+        load_ct_configuration "$OPT_TARGET_CONFIG"
     fi
 
 }
 
-function map_ct_to_defaults() {    
+function map_ct_to_defaults() {
 
     # They didn't specify a default, so let's not load any
     if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_NONE ]]; then
         return
-    fi 
+    fi
 
     # Set base defaults
     CT_CPU=$CT_DEFAULT_CPU
@@ -354,7 +354,7 @@ function map_ct_to_defaults() {
     CT_ONBOOT=$CT_DEFAULT_ONBOOT
     CT_ARCH=$CT_DEFAULT_ARCH
     CT_OSTYPE=$CT_DEFAULT_OSTYPE
-    
+
     if [[ "$OPT_DEFAULT_CONFIG" -eq $OPT_DEFAULTS_CONTAINERD ]]; then
         CT_UNPRIVILEGED=$CT_DEFAULT_DOCKER_UNPRIVILEGED
         CT_FEATURES=$CT_DEFAULT_DOCKER_FEATURES
@@ -362,7 +362,7 @@ function map_ct_to_defaults() {
 }
 function load_ct_configuration()
 {
-    local config="$1"    
+    local config="$1"
     local c_status="Loading Configuration..."
 
     msg "$c_status"
@@ -388,7 +388,7 @@ function print_opts() {
     local c_status="Gathering options..."
     local CT_SECURE_PASSWORD="**********"
     local CT_DEFAULT_CONFIG_TYPE=""
-    
+
     if [[ "$OPT_PROMPT_PASS" -eq 0 ]] && [[ "$INT_PROMPT_PASS" -eq 0 ]]; then
         CT_SECURE_PASSWORD=$CT_PASSWORD
     fi
@@ -443,7 +443,7 @@ function validate_env() {
 function created_container_verify() {
     local c_status="Checking Container ${CBlue}$PVE_TARGET${ENDMARKER}..."
     msg "$c_status"
-    local containers=$(pct list | awk 'NR>1 {print $NF}')    
+    local containers=$(pct list | awk 'NR>1 {print $NF}')
     if [[ ${containers[*]} =~ $PVE_TARGET ]]; then
         check_ok "Container ${CBlue}$PVE_TARGET${ENDMARKER} created :)"
         CT_SUCCESS=1
@@ -455,7 +455,7 @@ function created_container_verify() {
 }
 function created_container_print_opts() {
     local CT_SECURE_PASSWORD="¯\_(ツ)_/¯"
-    
+
     if [[ "$OPT_PROMPT_PASS" -eq 0 ]] && [[ "$INT_PROMPT_PASS" -eq 0 ]]; then
         CT_SECURE_PASSWORD=$CT_PASSWORD
     fi
@@ -490,7 +490,7 @@ function vm_ct_prep_dietpi() {
     if [[ "$OPT_IGNORE_DIETPI" -eq 1 || ! -f "$dietpi_version" ]]; then
         return
     fi
-    
+
     # Tell DietPi we're in a container
     # src: https://github.com/MichaIng/DietPi/blob/master/dietpi/func/dietpi-obtain_hw_model#L27
     echo 75 > /etc/.dietpi_hw_model_identifier
@@ -518,7 +518,7 @@ function vm_ct_prep_dietpi() {
 
 function vm_fs_snapshot() {
     # credit https://github.com/my5t3ry/machine-to-proxmox-lxc-ct-converter/blob/master/convert.sh#L53
-    tar -czvvf - -C / \
+    tar -czvvmf - -C / \
         --exclude="sys" \
         --exclude="dev" \
         --exclude="run" \
@@ -539,16 +539,16 @@ function get_vm_snapshot() {
 
 function create_vm_snapshot() {
     local c_status="${CMagenta}SSH Session:${ENDMARKER} ${CBlue}$PVE_SOURCE${ENDMARKER}..."
-    
+
     msg "$c_status"
 
     cursor_save
     CT_SCREENP=1
-    
+
     tput clear
     tput cup 0 0
     banner 1
-    
+
     ssh_err_out="$TEMP_DIR/$PVE_SOURCE-ssh.err"
     ssh_command=(ssh -p "$PVE_SOURCE_PORT" -o "ConnectTimeout=$SSH_CONNECTION_TIMEOUT" "$PVE_SOURCE_USER@$PVE_SOURCE")
     ssh_command+=(
@@ -556,17 +556,34 @@ function create_vm_snapshot() {
     )
 
     set +e # Temporarily disable to handle SSH woes
+
+	# tee + stdbuf + awk:
+	# This is a bit of a complex way to handle the SSH output,
+	# but it's the only way to handle the progress of filenames
+	# whilst files are being tar'd up *and* be able to see SSH
+	# failure outputs.
+	# If you have a better way, please let me know!
     if [ -n "$PVE_SSH_PASSWORD" ]; then
-        sshpass -p "$PVE_SSH_PASSWORD" "${ssh_command[@]}" 2> "$ssh_err_out" | tee "$PVE_SOURCE_OUTPUT"
+        SSHPASS="$PVE_SSH_PASSWORD" sshpass -e "${ssh_command[@]}" 2> >(tee "$ssh_err_out" >&2) | \
+        tee >(gzip > "$PVE_SOURCE_OUTPUT") | \
+        stdbuf -i0 -o0 -e0 awk '
+            BEGIN { RS="\r"; ORS="\n" }
+            /^\./ && !/^\.$/  { sub(/^\./, ""); if (length($0) > 0) print $0; fflush() }
+        '
     else
-        "${ssh_command[@]}" 2> "$ssh_err_out" | tee "$PVE_SOURCE_OUTPUT"
+        "${ssh_command[@]}" 2> >(tee "$ssh_err_out" >&2) | \
+        tee >(gzip > "$PVE_SOURCE_OUTPUT") | \
+        stdbuf -i0 -o0 -e0 awk '
+            BEGIN { RS="\r"; ORS="\n" }
+            /^\./ && !/^\.$/  { sub(/^\./, ""); if (length($0) > 0) print $0; fflush() }
+        '
     fi
     ssh_status=$?
     set -e # reenable
 
     cursor_restore
     CT_SCREENP=0
-    
+
     if [ $ssh_status -ne 0 ]; then
         error "SSH to ${CYellow}$PVE_SOURCE_USER@$PVE_SOURCE:$PVE_SOURCE_PORT${ENDMARKER} failed with status: ${BOLD}$ssh_status${ENDMARKER}"
         error "Output saved to '${CBlue}$ssh_err_out${ENDMARKER}':"
@@ -585,8 +602,8 @@ function cursor_restore() {
     tput csr 0 $(($LINES - 1))
     tput rc
 }
-function prompt_password() {    
-    
+function prompt_password() {
+
     if PROMPT_PASS=$(whiptail --passwordbox "Enter a Password for '$PVE_TARGET'. \n(leave empty for a random one)" --title "Choose a strong password" 10 50 --cancel-button Exit 3>&1 1>&2 2>&3); then
         if [ -z "${PROMPT_PASS}" ]; then
             CT_PASSWORD=$TEMP_PASS
@@ -604,7 +621,7 @@ function prompt_ssh_password() {
     if [[ "$INT_HOST_DEP_SSHPASS" -eq 0 ]]; then
         PVE_SSH_PASSWORD=""
         return
-    fi 
+    fi
     if PROMPT_SSH_PASS=$(whiptail --passwordbox "Enter the password for '$PVE_SOURCE_USER@$PVE_SOURCE'. \n(leave empty for a prompt from SSH later)" --title "Source PVE SSH Credentials" 10 50 --cancel-button Exit 3>&1 1>&2 2>&3); then
         if [ -z "${PROMPT_SSH_PASS}" ]; then
             PVE_SSH_PASSWORD=""
@@ -664,8 +681,8 @@ function cleanup () {
     # Reset screen & cursor position
     if [[ "$CT_SCREENP" -eq 1 ]]; then
         cursor_restore
-    fi 
-    
+    fi
+
     msg "$c_status"
     check_ok "Leaving  ${CBlue}$source_path${ENDMARKER} ($template_size_before)"
     msg_done "$c_status"
@@ -715,7 +732,7 @@ function main() {
     create_container
     created_container_verify
     created_container_print_opts
-    # cleanup is called via trap, so no need to call it here    
+    # cleanup is called via trap, so no need to call it here
 }
 
 function usage() {
