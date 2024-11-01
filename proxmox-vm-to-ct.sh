@@ -550,35 +550,35 @@ function create_vm_snapshot() {
     banner 1
 
     ssh_err_out="$TEMP_DIR/$PVE_SOURCE-ssh.err"
+    ssh_tmp_out="$TEMP_DIR/$PVE_SOURCE-ssh.tmp"
     ssh_command=(ssh -p "$PVE_SOURCE_PORT" -o "ConnectTimeout=$SSH_CONNECTION_TIMEOUT" "$PVE_SOURCE_USER@$PVE_SOURCE")
     ssh_command+=(
         "$(typeset -f vm_ct_prep); $(typeset -f vm_ct_prep_dietpi); $(typeset -f vm_fs_snapshot); $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); vm_ct_prep; vm_fs_snapshot"
     )
 
-    set +e # Temporarily disable to handle SSH woes
+    # Clear previous error output
+    > "$ssh_err_out"
 
-	# tee + stdbuf + awk:
-	# This is a bit of a complex way to handle the SSH output,
-	# but it's the only way to handle the progress of filenames
-	# whilst files are being tar'd up *and* be able to see SSH
-	# failure outputs.
-	# If you have a better way, please let me know!
+    set +e # Temporarily disable to handle SSH woes
     if [ -n "$PVE_SSH_PASSWORD" ]; then
-        SSHPASS="$PVE_SSH_PASSWORD" sshpass -e "${ssh_command[@]}" 2> >(tee "$ssh_err_out" >&2) | \
-        tee >(gzip > "$PVE_SOURCE_OUTPUT") | \
-        stdbuf -i0 -o0 -e0 awk '
-            BEGIN { RS="\r"; ORS="\n" }
-            /^\./ && !/^\.$/  { sub(/^\./, ""); if (length($0) > 0) print $0; fflush() }
-        '
+        SSHPASS="$PVE_SSH_PASSWORD" sshpass -e "${ssh_command[@]}" 2> >(tee "$ssh_err_out" >&2) > "$ssh_tmp_out" &
     else
-        "${ssh_command[@]}" 2> >(tee "$ssh_err_out" >&2) | \
-        tee >(gzip > "$PVE_SOURCE_OUTPUT") | \
-        stdbuf -i0 -o0 -e0 awk '
-            BEGIN { RS="\r"; ORS="\n" }
-            /^\./ && !/^\.$/  { sub(/^\./, ""); if (length($0) > 0) print $0; fflush() }
-        '
+        "${ssh_command[@]}" 2> >(tee "$ssh_err_out" >&2) > "$ssh_tmp_out" &
     fi
+    ssh_pid=$!
+
+    # This is to be able to see the filenames in realtime
+    tail -f "$ssh_err_out" | sed -u 's/^.*\r//; /^\.\/$/d; s/^\.\//./' &
+    tail_pid=$!
+
+    # Wait for SSH to complete
+    wait $ssh_pid
     ssh_status=$?
+
+    # Stop the tail process
+    kill $tail_pid 2>/dev/null
+    wait $tail_pid 2>/dev/null
+
     set -e # reenable
 
     cursor_restore
@@ -586,9 +586,13 @@ function create_vm_snapshot() {
 
     if [ $ssh_status -ne 0 ]; then
         error "SSH to ${CYellow}$PVE_SOURCE_USER@$PVE_SOURCE:$PVE_SOURCE_PORT${ENDMARKER} failed with status: ${BOLD}$ssh_status${ENDMARKER}"
-        error "Output saved to '${CBlue}$ssh_err_out${ENDMARKER}':"
+        error "Error output saved to '${CBlue}$ssh_err_out${ENDMARKER}':"
         color_cat "$ssh_err_out"
+        rm -f "$ssh_tmp_out"
         fatal "Aborting."
+    else
+        # Only move the file if SSH was successful
+        mv "$ssh_tmp_out" "$PVE_SOURCE_OUTPUT"
     fi
     msg_done "$c_status"
 }
