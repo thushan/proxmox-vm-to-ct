@@ -6,7 +6,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 ![Updated](https://img.shields.io/github/last-commit/thushan/proxmox-vm-to-ct)
-![Version](https://img.shields.io/badge/Version-v1.1.0-blue)
+![Version](https://img.shields.io/badge/Version-v1.1.1-blue)
 ![Proxmox](https://img.shields.io/badge/Proxmox-7.x%20%7C%208.x-orange?logo=proxmox)
 ![DietPi](https://img.shields.io/badge/DietPi-6.x%20%7C%207.x%20%7C%208.x%20%7C%209.x-C1FF00?logo=dietpi)
 
@@ -56,14 +56,14 @@ See further [examples](#Examples) below.
 > \[!TIP]
 >
 > If you want to retain the files for later, you can use the `--source-output` argument with a path to save it elsewhere.
-> 
+>
 > Eg. `--source-output ~/dietpi-first-attempt.tar.gz`
 >
 > Otherwise it will be created in your /tmp/proxmox-vm-to-ct folder.
-> 
+>
 > Next time you can reuse the above to create more containers by passing in the filename as the source.
-> 
-> See examples below. 
+>
+> See examples below.
 
 ## Example Run
 
@@ -201,6 +201,12 @@ This isn't recommended unless you intend to reuse the same image over multiple C
 
 #### Prompt for password
 
+> \[!TIP]
+>
+> From v1.1.1+, if you have `sshpass` installed (via `apt install sshpass`), you will be prompted
+> for your SSH password, after which it'll use sshpass to authenticate. If `sshpass` is not found
+> you will still be prompted by the ssh client for your password when it gets to that stage :-)
+
 If you want to set a password but be prompted for it, append the `--prompt-password` switch that will request your password securely, avoiding the auto-generated password.
 
 ```
@@ -336,7 +342,7 @@ For VM's that have a `containerd` instance (or Docker, Podman etc) we need a few
 
 ### DietPi Changes
 
-> \[!NOTE]  
+> \[!NOTE]
 > Changes are only made if we detect a DietPi installation by checking for
 > `/boot/dietpi/.version` file.
 
