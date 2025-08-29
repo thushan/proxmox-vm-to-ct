@@ -4,7 +4,7 @@
 # Author: Thushan Fernando <thushan.fernando@gmail.com>
 # http://github.com/thushan/proxmox-vm-to-ct
 
-VERSION=1.1.1
+VERSION=1.2.0
 
 set -Eeuo pipefail
 set -o nounset
@@ -223,7 +223,7 @@ function check_proxmox_container() {
 
 function check_proxmox_version() {
     local version=$(pveversion | grep -oP '(?<=pve-manager\/)[0-9]+')
-    if [[ "$version" -eq 7 ]] || [[ "$version" -eq 8 ]]; then
+    if [[ "$version" -eq 7 ]] || [[ "$version" -eq 8 ]] || [[ "$version" -eq 9 ]]; then
         check_ok "Proxmox version ${CBlue}v$version.x${ENDMARKER} is supported"
     else
         check_error "Unsupported version v$version"
@@ -333,6 +333,7 @@ function init_ct_config() {
     # If we're here, we know this exists now
     if [[ -n "$OPT_TARGET_CONFIG" ]]; then
         load_ct_configuration "$OPT_TARGET_CONFIG"
+        validate_ct_configuration
     fi
 
 }
@@ -383,6 +384,27 @@ function load_ct_configuration()
     esac
     done < "$config"
     msg_done "$c_status"
+}
+function validate_ct_configuration() {
+    local warnings=0
+
+    # Check RAM
+    if [[ $CT_RAM -lt 512 ]]; then
+        check_warn "RAM less than 512MB may cause issues"
+        ((warnings++))
+    fi
+
+    # Check disk size
+    if [[ ${CT_HDD%G} -lt 4 ]]; then
+        check_warn "Disk less than 4GB may be insufficient"
+        ((warnings++))
+    fi
+
+    if [[ $warnings -gt 0 ]]; then
+        read -p "Continue with warnings? (y/n) " -n 1 -r
+        echo
+        [[ ! $REPLY =~ ^[Yy]$ ]] && exit 1
+    fi
 }
 function print_opts() {
     local c_status="Gathering options..."
@@ -517,8 +539,13 @@ function vm_ct_prep_dietpi() {
 }
 
 function vm_fs_snapshot() {
+    local compressor="gzip"
+    if command -v pigz >/dev/null 2>&1; then
+        compressor="pigz"
+    fi
+
     # credit https://github.com/my5t3ry/machine-to-proxmox-lxc-ct-converter/blob/master/convert.sh#L53
-    tar -czvvmf - -C / \
+    tar --use-compress-program="$compressor" -cvmf - -C / \
         --exclude="sys" \
         --exclude="dev" \
         --exclude="run" \
