@@ -1,2 +1,4 @@
 tmp/
 staging/
+.serena/
+.claude/
