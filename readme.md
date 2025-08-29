@@ -6,10 +6,11 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 ![Updated](https://img.shields.io/github/last-commit/thushan/proxmox-vm-to-ct)
-![Version](https://img.shields.io/badge/Version-v1.1.1-blue)
-![Proxmox](https://img.shields.io/badge/Proxmox-7.x%20%7C%208.x-orange?logo=proxmox)
+![Version](https://img.shields.io/badge/Version-v1.2.0-blue)
+![Proxmox](https://img.shields.io/badge/Proxmox-7.x%20%7C%208.x%20%7C%209.x-orange?logo=proxmox)
 ![DietPi](https://img.shields.io/badge/DietPi-6.x%20%7C%207.x%20%7C%208.x%20%7C%209.x-C1FF00?logo=dietpi)
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/thushanfernando)
 </div>
 
 This repository contains scripts and helpers to convert your [Proxmox](https://www.proxmox.com) VM's to containers - with a special emphasis on [DietPi](https://dietpi.com/) VMs, but [the tweaks for DietPi](#dietpi-changes) are ignored on non-DietPi distributions.
