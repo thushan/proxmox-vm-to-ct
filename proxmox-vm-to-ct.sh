@@ -535,7 +535,17 @@ function vm_ct_prep_dietpi() {
     fi
 
     # Purge unnecessary packages, this may grow in the future, but simples for now.
-    echo "apt autopurge -y grub-pc tiny-initramfs linux-image-amd64" > /boot/Automation_Custom_Script.sh
+    # Append rather than overwrite, the VM may already have its own
+    # Automation_Custom_Script.sh that should survive the conversion.
+    local automation_script=/boot/Automation_Custom_Script.sh
+    local purge_cmd="apt autopurge -y grub-pc tiny-initramfs linux-image-amd64"
+    if ! grep -qsxF "$purge_cmd" "$automation_script"; then
+        # Guard against an existing script without a trailing newline
+        if [ -s "$automation_script" ] && [ -n "$(tail -c1 "$automation_script")" ]; then
+            echo >> "$automation_script"
+        fi
+        echo "$purge_cmd" >> "$automation_script"
+    fi
 }
 
 function vm_fs_snapshot() {
