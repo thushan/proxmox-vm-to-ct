@@ -4,7 +4,7 @@
 # Author: Thushan Fernando <thushan.fernando@gmail.com>
 # http://github.com/thushan/proxmox-vm-to-ct
 
-VERSION=1.2.0
+VERSION=1.3.0
 
 set -Eeuo pipefail
 set -o nounset
@@ -503,6 +503,91 @@ function vm_ct_prep() {
         return
     fi
     vm_ct_prep_dietpi
+    vm_ct_prep_cleanup
+}
+
+# A container runs the host's kernel and is booted by the hypervisor, so the
+# entire boot chain that comes across in the snapshot - kernels, initramfs,
+# bootloader, EFI shim - is dead weight, as are the guest agents that only
+# talk to a hypervisor. None of it can be purged here: the source VM is still
+# running and still needs to be able to boot. So install a one-shot unit that
+# does the purge on the first boot inside the container and then removes
+# itself. ConditionVirtualization=container keeps it inert if the source VM
+# reboots before it is retired.
+function vm_ct_prep_cleanup() {
+    local cleanup_name=proxmox-vm-to-ct-cleanup
+    local cleanup_bin=/usr/local/sbin/$cleanup_name
+    local cleanup_unit=/etc/systemd/system/$cleanup_name.service
+    local cleanup_wants=/etc/systemd/system/multi-user.target.wants
+
+    # Nothing to hook into on a non-systemd source.
+    if [ ! -d /etc/systemd/system ]; then
+        return
+    fi
+
+    mkdir -p "$(dirname "$cleanup_bin")"
+    cat > "$cleanup_bin" <<'CLEANUP_SCRIPT'
+#!/bin/sh
+# Installed by proxmox-vm-to-ct during VM -> CT conversion. Runs once, on the
+# first boot inside the container, then removes itself.
+set -e
+
+# The boot chain and the hypervisor guest agents. Matched against what is
+# actually installed so this works on BIOS and EFI, and on a kernel flavour
+# other than linux-image-amd64.
+packages=$(dpkg-query -W -f='${Package}\n' 2>/dev/null | grep -E '^(linux-image-|linux-headers-|linux-base$|initramfs-tools|tiny-initramfs$|dracut|grub-|grub2-|shim-|mokutil$|efibootmgr$|os-prober$|qemu-guest-agent$|open-vm-tools$)' || true)
+
+if [ -n "$packages" ]; then
+    # $packages is deliberately unquoted - one package per word.
+    # --allow-remove-essential: on an EFI install grub-efi-amd64-signed is
+    # dpkg-protected, and apt refuses the whole transaction without it.
+    DEBIAN_FRONTEND=noninteractive apt-get -y --allow-remove-essential \
+        purge --auto-remove $packages
+fi
+
+# The VM's root and ESP entries can never resolve in a container, so
+# systemd-remount-fs.service fails on every single boot until they are gone.
+# Comment them out rather than drop them, and keep a copy.
+if grep -qE '^[[:space:]]*(UUID=|PARTUUID=|LABEL=|PARTLABEL=|/dev/)' /etc/fstab 2>/dev/null; then
+    cp /etc/fstab /etc/fstab.vm-to-ct.bak
+    sed -i -E 's,^([[:space:]]*(UUID=|PARTUUID=|LABEL=|PARTLABEL=|/dev/)),# proxmox-vm-to-ct: \1,' /etc/fstab
+fi
+
+# The ESP came across as ordinary files, and nothing mounts it here.
+if [ -d /boot/efi ] && ! grep -q ' /boot/efi ' /proc/mounts; then
+    rm -rf /boot/efi
+fi
+
+# Retire. Anything above that fails leaves the unit enabled, so the next boot
+# retries rather than silently skipping the cleanup.
+rm -f /etc/systemd/system/multi-user.target.wants/proxmox-vm-to-ct-cleanup.service
+rm -f /etc/systemd/system/proxmox-vm-to-ct-cleanup.service
+systemctl daemon-reload
+rm -f "$0"
+CLEANUP_SCRIPT
+    chmod 0755 "$cleanup_bin"
+
+    cat > "$cleanup_unit" <<UNIT_FILE
+[Unit]
+Description=proxmox-vm-to-ct: remove VM-only packages after conversion
+Documentation=https://github.com/thushan/proxmox-vm-to-ct
+ConditionVirtualization=container
+ConditionPathExists=$cleanup_bin
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=$cleanup_bin
+
+[Install]
+WantedBy=multi-user.target
+UNIT_FILE
+
+    # Enable by hand rather than via systemctl: this is the source VM, and
+    # there is no reason to poke its running systemd to install a unit that
+    # will only ever fire in the container.
+    mkdir -p "$cleanup_wants"
+    ln -sf "$cleanup_unit" "$cleanup_wants/$cleanup_name.service"
 }
 
 function vm_ct_prep_dietpi() {
@@ -534,18 +619,8 @@ function vm_ct_prep_dietpi() {
         systemctl daemon-reload
     fi
 
-    # Purge unnecessary packages, this may grow in the future, but simples for now.
-    # Append rather than overwrite, the VM may already have its own
-    # Automation_Custom_Script.sh that should survive the conversion.
-    local automation_script=/boot/Automation_Custom_Script.sh
-    local purge_cmd="apt autopurge -y grub-pc tiny-initramfs linux-image-amd64"
-    if ! grep -qsxF "$purge_cmd" "$automation_script"; then
-        # Guard against an existing script without a trailing newline
-        if [ -s "$automation_script" ] && [ -n "$(tail -c1 "$automation_script")" ]; then
-            echo >> "$automation_script"
-        fi
-        echo "$purge_cmd" >> "$automation_script"
-    fi
+    # The package purge that used to live here is now vm_ct_prep_cleanup(),
+    # which runs for every distribution and covers grub-efi/shim as well.
 }
 
 function vm_fs_snapshot() {
@@ -590,7 +665,7 @@ function create_vm_snapshot() {
     ssh_tmp_out="$TEMP_DIR/$PVE_SOURCE-ssh.tmp"
     ssh_command=(ssh -p "$PVE_SOURCE_PORT" -o "ConnectTimeout=$SSH_CONNECTION_TIMEOUT" "$PVE_SOURCE_USER@$PVE_SOURCE")
     ssh_command+=(
-        "$(typeset -f vm_ct_prep); $(typeset -f vm_ct_prep_dietpi); $(typeset -f vm_fs_snapshot); $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); vm_ct_prep; vm_fs_snapshot"
+        "$(typeset -f vm_ct_prep); $(typeset -f vm_ct_prep_dietpi); $(typeset -f vm_ct_prep_cleanup); $(typeset -f vm_fs_snapshot); $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); vm_ct_prep; vm_fs_snapshot"
     )
 
     # Clear previous error output

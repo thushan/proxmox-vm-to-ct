@@ -352,11 +352,42 @@ The script prep's a DietPi (6.x | 7.x | 8.x or 9.x release) by making the follow
 * Sets the `.dietpi_hw_model_identifier` from `21` (`x86_64`) to `75` (`container`) as per [documentation](https://github.com/MichaIng/DietPi/blob/master/dietpi/func/dietpi-obtain_hw_model#L27)
 * Sets up first-login install sequence (even if you've done it already) so each container gets updates and updating of passwords instead of any randomly generated ones from the script by modifying `/boot/dietpi/.install_stage`.
 * Stops DietPi-CloudShell which is CloudHell when you reboot as a container in Proxmox otherwise.
-* Adds the purging of `grub-pc tiny-initramfs linux-image-amd64` packages which aren't required as a container - see [Michalng's comment](https://dietpi.com/blog/?p=2642#comment-5808).
+
+The purging of packages a container doesn't need used to live here too; it now applies to
+every distribution, see [Container Cleanup](#container-cleanup) below.
 
 The changes are found in the `vm_ct_prep` function (a snapshot can be found [here](https://github.com/thushan/proxmox-vm-to-ct/blob/198a7516c04c044ed90645864643677004884586/proxmox-vm-to-ct.sh#L395).)
 
 You can skip these for non-DietPi images with `--ignore-dietpi` or overall `--ignore-prep` switches, but are ignored if no DietPi image is detected (say it's a stock debian VM).
+
+### Container Cleanup
+
+A container runs the host's kernel and is booted by Proxmox, so the entire boot chain that
+comes across in the snapshot - kernels, initramfs, bootloader, EFI shim - is dead weight, and
+so are the guest agents that only ever talk to a hypervisor.
+
+None of it can be removed while the snapshot is being taken, because the source VM is still
+running and still needs to be able to boot. So the script installs a one-shot systemd unit,
+`proxmox-vm-to-ct-cleanup.service`, that does the work on the **first boot inside the
+container** and then deletes itself. It carries `ConditionVirtualization=container`, so it
+stays inert if you boot the source VM again before retiring it.
+
+On that first boot it:
+
+* purges the installed packages matching the boot chain (`linux-image-*`, `linux-headers-*`,
+  `linux-base`, `initramfs-tools*`, `tiny-initramfs`, `dracut*`, `grub-*`, `grub2-*`,
+  `shim-*`, `mokutil`, `efibootmgr`, `os-prober`) and the guest agents (`qemu-guest-agent`,
+  `open-vm-tools`) - matched against what is actually installed, so it covers both BIOS
+  (`grub-pc`) and EFI (`grub-efi-*` plus the Secure Boot shim) VMs, and kernel flavours other
+  than `linux-image-amd64` - see [Michalng's comment](https://dietpi.com/blog/?p=2642#comment-5808);
+* comments out the `/etc/fstab` entries that name a device (`UUID=`, `PARTUUID=`, `LABEL=`,
+  `PARTLABEL=`, `/dev/…`), keeping a copy at `/etc/fstab.vm-to-ct.bak`. Those can never
+  resolve in a container, and leaving them makes `systemd-remount-fs.service` fail on every
+  boot;
+* removes `/boot/efi` if the ESP came across as ordinary files and nothing is mounted there.
+
+If any of that fails the unit stays enabled, so the next boot retries rather than silently
+skipping the cleanup. Use `--ignore-prep` to skip it entirely.
 
 ### Grub Boot, OMG WHAT?
 
@@ -365,6 +396,9 @@ OMG, what the heck is this?
 ![Grub Prune](artefacts/intro-proxmox-ct-grub.png)
 
 Don't worry, your DietPi image doesn't need `grub-pc,m tiny-initramfs & linux-image-amd64` packages, so they were removed and it's asking whether to remove them from Grub. You can say `YES` - see [Michalng's comment](https://dietpi.com/blog/?p=2642#comment-5808).
+
+Since the [Container Cleanup](#container-cleanup) runs with `DEBIAN_FRONTEND=noninteractive`,
+you shouldn't be asked at all any more - the answer above is what it picks for you.
 
 # Issues, Comments, Improvements
 

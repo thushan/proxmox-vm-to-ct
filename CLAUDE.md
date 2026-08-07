@@ -47,6 +47,7 @@ Bash script that converts running Proxmox VMs to Containers via SSH tar snapshot
   - Uses: `tar -czvvmf - -C /`
 - `vm_ct_prep()` - General VM preparation
 - `vm_ct_prep_dietpi()` - DietPi-specific modifications
+- `vm_ct_prep_cleanup()` - Installs the first-boot container cleanup unit (all distributions)
 
 ### Configuration
 - `init_ct_config()` - Initialize container settings
@@ -83,7 +84,23 @@ Detected via `/boot/dietpi/.version`:
 1. **Hardware Model**: Set to 75 (container mode)
 2. **First Boot**: Reset install stage to 1
 3. **CloudShell**: Disable service
-4. **Package Cleanup**: Remove grub-pc, tiny-initramfs, linux-image-amd64
+
+## Container Cleanup (all distributions)
+Installed by `vm_ct_prep_cleanup()` as `/etc/systemd/system/proxmox-vm-to-ct-cleanup.service`
+plus `/usr/local/sbin/proxmox-vm-to-ct-cleanup`, enabled by symlinking into
+`multi-user.target.wants` rather than by invoking `systemctl` on the source VM.
+
+Runs once, on the first boot **inside the container**, guarded by
+`ConditionVirtualization=container` so it can never fire on the source VM. It:
+
+1. **Package purge**: installed packages matching `linux-image-*`, `linux-headers-*`,
+   `linux-base`, `initramfs-tools*`, `tiny-initramfs`, `dracut*`, `grub-*`, `grub2-*`,
+   `shim-*`, `mokutil`, `efibootmgr`, `os-prober`, `qemu-guest-agent`, `open-vm-tools`.
+   Matched at runtime, so BIOS and EFI VMs are both covered. Needs
+   `--allow-remove-essential` because `grub-efi-amd64-signed` is dpkg-protected.
+2. **fstab**: comments out entries naming a device, backup at `/etc/fstab.vm-to-ct.bak`
+3. **ESP**: removes `/boot/efi` when it is not a mount point
+4. **Self-removal**: only on success, so a failure retries on the next boot
 
 ## Remote Execution Pattern
 Functions serialized for SSH execution:
@@ -91,6 +108,7 @@ Functions serialized for SSH execution:
 ssh_command+=(
     "$(typeset -f vm_ct_prep); 
      $(typeset -f vm_ct_prep_dietpi); 
+     $(typeset -f vm_ct_prep_cleanup); 
      $(typeset -f vm_fs_snapshot); 
      $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); 
      vm_ct_prep; 
@@ -193,6 +211,7 @@ ssh_command+=(
 - Single network interface configuration
 
 ## Version History
+- v1.3.0: Container cleanup for every distribution, not just DietPi
 - v1.1.1: sshpass support, improved SSH handling
 - v1.0.0: File-based snapshot reuse
 - v0.9.x: Initial release with DietPi support
