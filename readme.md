@@ -401,7 +401,10 @@ OMG, what the heck is this?
 
 ![Grub Prune](artefacts/intro-proxmox-ct-grub.png)
 
-Don't worry, your image doesn't need `grub-pc,m tiny-initramfs & linux-image-amd64` packages, so they were removed and it's asking whether to remove them from Grub. `YES` is the right answer - see [Michalng's comment](https://dietpi.com/blog/?p=2642#comment-5808).
+Older versions removed the `grub-pc`, `tiny-initramfs`, and
+`linux-image-amd64` packages, then asked whether to remove them from GRUB.
+`YES` was the right answer - see
+[Michalng's comment](https://dietpi.com/blog/?p=2642#comment-5808).
 
 You shouldn't see that prompt any more: the [Container Cleanup](#container-cleanup) runs with
 `DEBIAN_FRONTEND=noninteractive` and picks that same answer for you. The screenshot is what

@@ -90,9 +90,10 @@ Installed by `vm_ct_prep_cleanup()` as `/etc/systemd/system/proxmox-vm-to-ct-cle
 plus `/usr/local/sbin/proxmox-vm-to-ct-cleanup`, enabled by symlinking into
 `multi-user.target.wants` rather than by invoking `systemctl` on the source VM.
 
-Requires `systemd` on the guest (no `/etc/systemd/system`, no install); the package purge
-additionally requires `dpkg`/`apt`, so it covers the Debian family. Elsewhere the unit still
-performs the `fstab` and `/boot/efi` steps.
+Requires `systemd` on the guest. If `/etc/systemd/system` is absent, the
+cleanup unit is not installed. The package purge additionally requires
+`dpkg`/`apt`, so it covers the Debian family. On other systemd guests, the unit
+still performs the `fstab` and `/boot/efi` steps.
 
 Runs once, on the first boot **inside the container**, guarded by
 `ConditionVirtualization=container` so it can never fire on the source VM. It:
@@ -112,7 +113,7 @@ Functions serialized for SSH execution:
 ssh_command+=(
     "$(typeset -f vm_ct_prep); 
      $(typeset -f vm_ct_prep_dietpi); 
-     $(typeset -f vm_ct_prep_cleanup); 
+     $(typeset -f vm_ct_prep_cleanup);
      $(typeset -f vm_fs_snapshot); 
      $(declare -p OPT_IGNORE_DIETPI OPT_IGNORE_PREP); 
      vm_ct_prep; 
