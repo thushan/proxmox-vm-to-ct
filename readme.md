@@ -353,10 +353,10 @@ The script prep's a DietPi (6.x | 7.x | 8.x or 9.x release) by making the follow
 * Sets up first-login install sequence (even if you've done it already) so each container gets updates and updating of passwords instead of any randomly generated ones from the script by modifying `/boot/dietpi/.install_stage`.
 * Stops DietPi-CloudShell which is CloudHell when you reboot as a container in Proxmox otherwise.
 
-The purging of packages a container doesn't need used to live here too; it now applies to
-every distribution, see [Container Cleanup](#container-cleanup) below.
+The purging of packages a container doesn't need used to live here too; it now runs on every
+Debian-family guest, DietPi or not, see [Container Cleanup](#container-cleanup) below.
 
-The changes are found in the `vm_ct_prep` function (a snapshot can be found [here](https://github.com/thushan/proxmox-vm-to-ct/blob/198a7516c04c044ed90645864643677004884586/proxmox-vm-to-ct.sh#L395).)
+The changes are found in the `vm_ct_prep` function ([snapshot of `vm_ct_prep` at the time of writing](https://github.com/thushan/proxmox-vm-to-ct/blob/198a7516c04c044ed90645864643677004884586/proxmox-vm-to-ct.sh#L395)).
 
 You can skip these for non-DietPi images with `--ignore-dietpi` or overall `--ignore-prep` switches, but are ignored if no DietPi image is detected (say it's a stock debian VM).
 
@@ -372,7 +372,13 @@ running and still needs to be able to boot. So the script installs a one-shot sy
 container** and then deletes itself. It carries `ConditionVirtualization=container`, so it
 stays inert if you boot the source VM again before retiring it.
 
-On that first boot it:
+It needs `systemd` on the guest to be installed at all, and `dpkg`/`apt` for the package
+purge, so the purge covers Debian, Ubuntu, DietPi and the rest of the Debian family. On a
+guest with `systemd` but another package manager the unit still runs and still does the
+`fstab` and `/boot/efi` work below, it just has no packages to remove; on a guest without
+`systemd` nothing is installed at all.
+
+On that first boot, it:
 
 * purges the installed packages matching the boot chain (`linux-image-*`, `linux-headers-*`,
   `linux-base`, `initramfs-tools*`, `tiny-initramfs`, `dracut*`, `grub-*`, `grub2-*`,
@@ -386,7 +392,7 @@ On that first boot it:
   boot;
 * removes `/boot/efi` if the ESP came across as ordinary files and nothing is mounted there.
 
-If any of that fails the unit stays enabled, so the next boot retries rather than silently
+If any of that fails, the unit stays enabled, so the next boot retries rather than silently
 skipping the cleanup. Use `--ignore-prep` to skip it entirely.
 
 ### Grub Boot, OMG WHAT?
@@ -395,10 +401,11 @@ OMG, what the heck is this?
 
 ![Grub Prune](artefacts/intro-proxmox-ct-grub.png)
 
-Don't worry, your DietPi image doesn't need `grub-pc,m tiny-initramfs & linux-image-amd64` packages, so they were removed and it's asking whether to remove them from Grub. You can say `YES` - see [Michalng's comment](https://dietpi.com/blog/?p=2642#comment-5808).
+Don't worry, your image doesn't need `grub-pc,m tiny-initramfs & linux-image-amd64` packages, so they were removed and it's asking whether to remove them from Grub. `YES` is the right answer - see [Michalng's comment](https://dietpi.com/blog/?p=2642#comment-5808).
 
-Since the [Container Cleanup](#container-cleanup) runs with `DEBIAN_FRONTEND=noninteractive`,
-you shouldn't be asked at all any more - the answer above is what it picks for you.
+You shouldn't see that prompt any more: the [Container Cleanup](#container-cleanup) runs with
+`DEBIAN_FRONTEND=noninteractive` and picks that same answer for you. The screenshot is what
+older versions of the script looked like.
 
 # Issues, Comments, Improvements
 

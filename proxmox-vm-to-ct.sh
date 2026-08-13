@@ -559,10 +559,12 @@ if [ -d /boot/efi ] && ! grep -q ' /boot/efi ' /proc/mounts; then
 fi
 
 # Retire. Anything above that fails leaves the unit enabled, so the next boot
-# retries rather than silently skipping the cleanup.
+# retries rather than silently skipping the cleanup. The reload is only there to
+# drop the unit from systemd's view - the cleanup is already done by this point,
+# so a reload failure must not abort the removal and strand this script on disk.
 rm -f /etc/systemd/system/multi-user.target.wants/proxmox-vm-to-ct-cleanup.service
 rm -f /etc/systemd/system/proxmox-vm-to-ct-cleanup.service
-systemctl daemon-reload
+systemctl daemon-reload || true
 rm -f "$0"
 CLEANUP_SCRIPT
     chmod 0755 "$cleanup_bin"

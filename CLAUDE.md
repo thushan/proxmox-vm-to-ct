@@ -47,7 +47,7 @@ Bash script that converts running Proxmox VMs to Containers via SSH tar snapshot
   - Uses: `tar -czvvmf - -C /`
 - `vm_ct_prep()` - General VM preparation
 - `vm_ct_prep_dietpi()` - DietPi-specific modifications
-- `vm_ct_prep_cleanup()` - Installs the first-boot container cleanup unit (all distributions)
+- `vm_ct_prep_cleanup()` - Installs the first-boot container cleanup unit (any systemd guest)
 
 ### Configuration
 - `init_ct_config()` - Initialize container settings
@@ -85,10 +85,14 @@ Detected via `/boot/dietpi/.version`:
 2. **First Boot**: Reset install stage to 1
 3. **CloudShell**: Disable service
 
-## Container Cleanup (all distributions)
+## Container Cleanup (not DietPi-specific)
 Installed by `vm_ct_prep_cleanup()` as `/etc/systemd/system/proxmox-vm-to-ct-cleanup.service`
 plus `/usr/local/sbin/proxmox-vm-to-ct-cleanup`, enabled by symlinking into
 `multi-user.target.wants` rather than by invoking `systemctl` on the source VM.
+
+Requires `systemd` on the guest (no `/etc/systemd/system`, no install); the package purge
+additionally requires `dpkg`/`apt`, so it covers the Debian family. Elsewhere the unit still
+performs the `fstab` and `/boot/efi` steps.
 
 Runs once, on the first boot **inside the container**, guarded by
 `ConditionVirtualization=container` so it can never fire on the source VM. It:
@@ -211,7 +215,7 @@ ssh_command+=(
 - Single network interface configuration
 
 ## Version History
-- v1.3.0: Container cleanup for every distribution, not just DietPi
+- v1.3.0: Container cleanup for every guest, not just DietPi
 - v1.1.1: sshpass support, improved SSH handling
 - v1.0.0: File-based snapshot reuse
 - v0.9.x: Initial release with DietPi support
