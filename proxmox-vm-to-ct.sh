@@ -536,13 +536,14 @@ set -e
 # actually installed so this works on BIOS and EFI, and on a kernel flavour
 # other than linux-image-amd64.
 packages=$(dpkg-query -W -f='${Package}\n' 2>/dev/null | grep -E '^(linux-image-|linux-headers-|linux-base$|initramfs-tools|tiny-initramfs$|dracut|grub-|grub2-|shim-|mokutil$|efibootmgr$|os-prober$|qemu-guest-agent$|open-vm-tools$)' || true)
+purge_status=0
 
 if [ -n "$packages" ]; then
     # $packages is deliberately unquoted - one package per word.
     # --allow-remove-essential: on an EFI install grub-efi-amd64-signed is
     # dpkg-protected, and apt refuses the whole transaction without it.
     DEBIAN_FRONTEND=noninteractive apt-get -y --allow-remove-essential \
-        purge --auto-remove $packages
+        -o DPkg::Lock::Timeout=600 purge --auto-remove $packages || purge_status=$?
 fi
 
 # The VM's root and ESP entries can never resolve in a container, so
@@ -556,6 +557,12 @@ fi
 # The ESP came across as ordinary files, and nothing mounts it here.
 if [ -d /boot/efi ] && ! grep -q ' /boot/efi ' /proc/mounts; then
     rm -rf /boot/efi
+fi
+
+# Keep the unit enabled when the purge failed, but only after the independent
+# filesystem cleanup has had a chance to run on this boot.
+if [ "$purge_status" -ne 0 ]; then
+    exit "$purge_status"
 fi
 
 # Retire. Anything above that fails leaves the unit enabled, so the next boot
